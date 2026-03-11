@@ -1,3 +1,15 @@
+# KoreanTalk - TOPIK 학습 뷰어
+
+## Secure Viewer Update
+
+학생용 전자책 뷰어는 `feature/security_ui` 브랜치부터 `?url=` 직접 로드 방식을 사용하지 않습니다.
+
+- 진입 방식: `viewer-*.html?session=<opaque-token>`
+- 권장 세션 API: `GET /api/viewer/session/{token}`
+- 상세 설계 문서: [SECURE_VIEWER_INTEGRATION.md](./SECURE_VIEWER_INTEGRATION.md)
+
+기존 `exam_data.js`, `result.js`는 개발 fallback 용도로만 유지하고, 운영에서는 서버가 내려주는 manifest JSON을 정본으로 사용합니다.
+
 # KoreanTalk - TOPIK 말하기 연습
 
 TOPIK 한국어 말하기 연습을 위한 인터랙티브 웹사이트입니다.
