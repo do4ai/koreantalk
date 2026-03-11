@@ -199,13 +199,9 @@
         </div>
 
         <!-- Global Resources (Originally in Speaking Tab) -->
-        <!-- PDF 선택 섹션 -->
-        <div id="pdfSelector" class="pdf-selector">
-            <h2>PDF 파일을 선택하세요</h2>
-            <div id="pdfList" class="pdf-list">
-                <!-- PDF 목록이 여기에 표시됩니다 -->
-            </div>
-            <p class="helper-text">PDF가 없으신가요? 관리자(Manager) 페이지에서 추가해주세요.</p>
+        <!-- PDF 선택 섹션 (단독 뷰어 모드로 개조됨) -->
+        <div id="pdfSelector" class="pdf-selector" style="text-align: center; margin-top: 50px;">
+            <h2 id="loadingMessage" style="color: #4f46e5;">사용자 전용 뷰어에 연결 중입니다...</h2>
         </div>
 
         <!-- PDF 뷰어 섹션 (Shared Component) -->
@@ -1494,8 +1490,8 @@
                 // 외부 URL에서 PDF 로드
                 try {
                     console.log("Downloading remote PDF from:", pdfUrl);
-                    // 안내 메시지 표시 (임시)
-                    elements.pdfList.innerHTML = '<p style="text-align:center; padding:20px;">원격 PDF를 불러오는 중입니다... 잠시만 기다려주세요.</p>';
+                    // 안내 메시지 표시
+                    document.getElementById('loadingMessage').innerHTML = '원격 저장소에서 시험지를 불러오는 중입니다...<br><span style="font-size: 0.9rem; color:#666; font-weight:normal;">파일 용량에 따라 잠시 시간이 소요될 수 있습니다.</span>';
 
                     const response = await fetch(pdfUrl);
                     if (!response.ok) throw new Error("Network response was not ok");
@@ -1513,8 +1509,7 @@
                     loadPdf(remotePdf);
                 } catch (error) {
                     console.error("PDF 다운로드 실패:", error);
-                    alert("원격 PDF를 불러오지 못했습니다. URL이 올바른지 확인해주세요.");
-                    displayPdfList();
+                    document.getElementById('loadingMessage').innerHTML = '<span style="color:#ef4444;">시험지를 불러오지 못했습니다.</span><br><br>올바른 링크(URL)인지 확인해 주세요. (' + error.message + ')';
                 }
             } else if (id) {
                 const transaction = db.transaction([STORE_NAME], 'readonly');
@@ -1522,10 +1517,12 @@
                 const request = store.get(id);
                 request.onsuccess = () => {
                     if (request.result) loadPdf(request.result);
-                    else displayPdfList();
+                    else {
+                        document.getElementById('loadingMessage').innerHTML = '<span style="color:#ef4444;">오류가 발생했습니다.</span><br><br>유효하지 않은 시험지 코드입니다.';
+                    }
                 };
             } else {
-                displayPdfList();
+                document.getElementById('loadingMessage').innerHTML = '<span style="color:#ef4444;">잘못된 접근입니다.</span><br><br>개별적으로 부여받은 전용 링크 주소(URL)를 통해 접속해 주세요.';
             }
         };
 
