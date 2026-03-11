@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 자동 재생 | KoreanTalk</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pdf-viewer.css?v=18">
+    <style>
+        /* Modal Styles for Q&A Manager */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 95%;
+            max-width: 700px;
+
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #1e293b;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .omr-editor-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .omr-editor-table th,
+        .omr-editor-table td {
+            text-align: center;
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+        }
+
+        .omr-editor-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .btn-delete {
+            color: #ef4444;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-weight: bold;
+        }
+
+        .input-tiny {
+            padding: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .btn-add {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .omr-add-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <script src="result.js"></script>
+    <script src="exam_data.js"></script> <!-- Extracted Exam Data -->
+</head>
+
+<body class="bg-gray-100 font-sans">
+    <!-- Question Manager Modal (OMR Editor) -->
+    <div id="omrManagerModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📝 문항 및 정답 관리 (OMR Editor)</h3>
+                <button onclick="closeOmrManager()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="guide-text" style="font-size:0.85rem; color:#64748b; margin-bottom:15px;">현재 페이지에서 추출된 문항입니다.
+                    문항 텍스트, 선택지, 정답을 수정할 수 있습니다.<br>저장하면 자동 인식 결과보다 우선 적용됩니다.</p>
+                <div id="omrEditorList" style="display:flex; flex-direction:column; gap:12px;">
+                    <!-- JS Generated Cards -->
+                </div>
+                <div class="omr-add-row" style="margin-top:15px;">
+                    <input type="number" id="newQmNum" placeholder="번호" class="input-tiny" style="width: 60px;">
+                    <select id="newQmAns" class="input-tiny">
+                        <option value="-1">정답 없음</option>
+                        <option value="0">①</option>
+                        <option value="1">②</option>
+                        <option value="2">③</option>
+                        <option value="3">④</option>
+                    </select>
+                    <button onclick="addQuestionToManager()" class="btn-add">+ 문항 추가</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="resetToAutoScan()" class="btn-secondary">초기화 (자동 스캔 복구)</button>
+                <button onclick="saveOmrManagerData()" class="btn-primary">저장 및 적용</button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <div class="container">
+            <h1>KoreanTalk</h1>
+            <p class="subtitle">PDF 자동 재생</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Tab Navigation -->
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('speaking')">📢 말하기 (Speaking)</button>
+            <button class="tab-btn" onclick="switchTab('exam')">� 듣기&읽기 (Exam)</button>
+            <button class="tab-btn" onclick="switchTab('grammar')">📚 문법&어휘 (Grammar)</button>
+        </div>
+
+        <!-- Global Resources (Originally in Speaking Tab) -->
+        <!-- PDF 선택 섹션 -->
+        <div id="pdfSelector" class="pdf-selector">
+            <h2>PDF 파일을 선택하세요</h2>
+            <div id="pdfList" class="pdf-list">
+                <!-- PDF 목록이 여기에 표시됩니다 -->
+            </div>
+            <p class="helper-text">PDF가 없으신가요? 관리자(Manager) 페이지에서 추가해주세요.</p>
+        </div>
+
+        <!-- PDF 뷰어 섹션 (Shared Component) -->
+        <div id="pdfViewerSection" class="pdf-viewer-section" style="display: none;">
+            <div class="pdf-canvas-container">
+                <canvas id="pdfCanvas"></canvas>
+            </div>
+
+            <!-- 컨트롤 바 -->
+            <div class="controls-bar">
+                <!-- 왼쪽: 큰 자동재생 버튼들 -->
+                <div class="main-play-section">
+                    <!-- 자동 재생 그룹 -->
+                    <button id="autoPlayBtn" class="main-play-btn auto-play">
+                        <span class="main-btn-icon">⏩</span>
+                        <div class="main-btn-text-group">
+                            <span class="main-btn-text">자동 재생</span>
+                            <span class="main-btn-subtext">페이지 자동 넘김</span>
+                        </div>
+                    </button>
+                    <button id="autoStopBtn" class="main-play-btn auto-stop">
+                        <span class="main-btn-icon">⏹</span>
+                        <div class="main-btn-text-group">
+                            <span class="main-btn-text">자동재생 멈추기</span>
+                            <span class="main-btn-subtext">자동 넘김 중단</span>
+                        </div>
+                    </button>
+
+                    <!-- 단일 재생 그룹 -->
+                    <button id="pagePlayBtn" class="main-play-btn page-play">
+                        <span class="main-btn-icon">▶</span>
+                        <div class="main-btn-text-group">
+                            <span class="main-btn-text">재생</span>
+                            <span class="main-btn-subtext">현재 페이지만</span>
+                        </div>
+                    </button>
+                    <button id="pageStopBtn" class="main-play-btn page-stop">
+                        <span class="main-btn-icon">⏸</span>
+                        <div class="main-btn-text-group">
+                            <span class="main-btn-text">재생 멈추기</span>
+                            <span class="main-btn-subtext">낭독/타이머 중지</span>
+                        </div>
+                    </button>
+
+                    <!-- 기타 -->
+                    <button id="mainGoToFirstBtn" class="main-play-btn first-btn">
+                        <span class="main-btn-icon">⏮</span>
+                        <div class="main-btn-text-group">
+                            <span class="main-btn-text">처음으로</span>
+                            <span class="main-btn-subtext">1페이지 이동</span>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- 오른쪽: 모든 컨트롤 -->
+                <div class="controls-right">
+                    <div class="control-group">
+                        <button id="prevBtn" class="control-btn" title="이전 페이지">⏮</button>
+                        <button id="nextBtn" class="control-btn" title="다음 페이지">⏭</button>
+                        <!-- [New] Zoom Controls -->
+                        <div style="display:flex; gap:2px; margin-left:5px; margin-right:5px;">
+                            <button id="zoomOutBtn" class="control-btn" onclick="zoomOut()" title="축소 (-)">➖</button>
+                            <button id="zoomInBtn" class="control-btn" onclick="zoomIn()" title="확대 (+)">➕</button>
+                            <button id="fitWidthBtn" class="control-btn" onclick="fitToWidth()"
+                                title="너비 맞춤 (양쪽 채우기)">↔</button>
+                        </div>
+                    </div>
+
+                    <div class="page-info">
+                        <span id="pageNum">1</span> / <span id="pageCount">0</span>
+                    </div>
+
+                    <div class="control-group">
+                        <button id="repeatBtn" class="control-btn" title="반복 재생">🔁</button>
+                        <button id="fullscreenBtn" class="control-btn" title="전체화면">⛶</button>
+                        <button id="settingsBtn" class="control-btn" title="설정">⚙</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live 가이드 대시보드 -->
+            <div id="sttContextArea" class="live-dashboard">
+                <div class="dashboard-header">
+                    <div class="dashboard-badge">LIVE MONITOR</div>
+                    <div id="sttTimeInfo" class="dashboard-timers"></div>
+                </div>
+                <div class="dashboard-content">
+                    <div class="dashboard-label">현재 페이지 낭독 텍스트</div>
+                    <div id="sttSnippet" class="dashboard-text">
+                        설정된 텍스트가 없습니다. 기본 재생(5초)이 적용됩니다.
+                    </div>
+                </div>
+            </div>
+
+            <!-- 진행 바 -->
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar"></div>
+                <div id="progressText" class="progress-text">5초</div>
+            </div>
+
+            <!-- Note 표시 영역 -->
+            <div id="noteDisplayArea"
+                style="margin-top: 15px; padding: 15px; background: #fff5f5; border: 1px solid #feb2b2; border-radius: 12px; display: none; position: relative;">
+                <div
+                    style="font-size: 0.75rem; font-weight: 800; color: #e53e3e; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Note (답안 예시 / 힌트)</div>
+                <div id="noteContent"
+                    style="font-size: 0.95rem; line-height: 1.6; color: #2d3748; white-space: pre-wrap;"></div>
+                <button id="playNoteBtn"
+                    style="position: absolute; top: 10px; right: 10px; background: #feb2b2; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">🔊
+                    듣기</button>
+            </div>
+
+            <!-- 설정 패널 -->
+            <div id="settingsPanel" class="settings-panel" style="display: none;">
+                <h3>설정</h3>
+
+                <!-- 빠른 페이지별 텍스트 수정 -->
+                <div class="setting-section">
+                    <h4>✏️ 페이지별 텍스트 빠른 수정</h4>
+                    <div class="setting-item">
+                        <label>현재 페이지의 낭독 내용을 즉시 수정할 수 있습니다:</label>
+                        <p
+                            style="font-size: 11px; color: #666; margin: 5px 0; background: #e3f2fd; padding: 8px; border-radius: 4px;">
+                            💡 <strong>일괄 적용 안내:</strong><br>
+                            전체 페이지의 텍스트와 시간을 한 번에 맞추려면 <a href="pdf-stt.html"
+                                style="color: #1a73e8; font-weight: bold; text-decoration: underline;">[PDF 가이드
+                                도구]</a>를 사용하시는 것이 훨씬 편리합니다.
+                        </p>
+                        <textarea id="quickTtsInput" placeholder="수정할 내용을 입력하세요..." rows="3"
+                            style="width: 100%; margin-top: 8px;"></textarea>
+                        <button id="saveQuickTtsBtn" class="control-btn"
+                            style="background: #34a853; margin-top: 8px;">현재 페이지에 저장</button>
+                    </div>
+                </div>
+
+                <!-- [New] 소리 및 재생 설정 -->
+                <div class="setting-section">
+                    <h4>🔊 소리 및 효과음 설정</h4>
+                    <div class="setting-item"
+                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <label for="enableGuideSound">안내음 (띠링~)</label>
+                        <input type="checkbox" id="enableGuideSound" onchange="saveSoundSettings()">
+                    </div>
+                    <div class="setting-item" style="display:flex; justify-content:space-between; align-items:center;">
+                        <label for="enableStartSound">시작/종료 신호음</label>
+                        <input type="checkbox" id="enableStartSound" onchange="saveSoundSettings()">
+                    </div>
+                    <p style="font-size:11px; color:#666; margin-top:5px;">
+                        * 문법/어휘 학습 시에는 끄는 것을 권장합니다.
+                    </p>
+                </div>
+
+
+                <!-- 현재 페이지 개별 설정 (접이식) -->
+                <div class="setting-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
+                        onclick="document.getElementById('advancedSettings').style.display = document.getElementById('advancedSettings').style.display === 'none' ? 'block' : 'none'">
+                        <h4 style="margin: 0;">📄 현재 페이지 상세 설정</h4>
+                        <span style="font-size: 12px; color: #4f46e5; font-weight: bold;">보기/숨기기 ▾</span>
+                    </div>
+
+                    <div id="advancedSettings"
+                        style="display: none; margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 15px;">
+                        <div class="setting-item">
+                            <label for="pageTtsText">현재 페이지 음성 텍스트 (TTS):</label>
+                            <textarea id="pageTtsText" placeholder="여기에 텍스트를 입력하면 자동으로 음성이 생성됩니다" rows="4"></textarea>
+                            <div style="display: flex; gap: 8px; margin-top: 5px;">
+                                <button id="testTtsBtn" class="control-btn" style="flex: 1;">테스트 재생</button>
+                                <button id="saveTtsBtn" class="control-btn" style="flex: 1; background: #4f46e5;">텍스트
+                                    저장</button>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="setting-item">
+                                <label for="pagePrepTime">준비 시간 (초):</label>
+                                <input type="number" id="pagePrepTime" min="0" max="100" value="0" style="width: 100%;">
+                            </div>
+                            <div class="setting-item">
+                                <label for="pageTtsDelay">말하기 시간 (초):</label>
+                                <input type="number" id="pageTtsDelay" min="1" max="180" value="2" style="width: 100%;">
+                            </div>
+                        </div>
+
+                        <div class="setting-item" style="margin-top: 10px;">
+                            <label for="pageNoteText">Note (별도 표시용):</label>
+                            <textarea id="pageNoteText" placeholder="Note. 또는 대답 이후의 내용" rows="3"></textarea>
+                            <button id="testNoteTtsBtn" class="control-btn"
+                                style="background: #ec4899; margin-top: 5px; width: 100%;">Note 듣기 테스트</button>
+                        </div>
+
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
+
+                        <div class="setting-item">
+                            <label for="ttsSpeed">음성 속도:</label>
+                            <input type="range" id="ttsSpeed" min="0.5" max="2" step="0.1" value="1"
+                                style="width: 100%;">
+                            <div id="ttsSpeedValue" style="text-align: center; font-weight: bold; color: #4f46e5;">
+                                1.0x</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="closeSettingsBtn" class="control-btn">닫기</button>
+            </div>
+
+            <!-- 음성 재생기 (숨김) -->
+            <audio id="audioPlayer"></audio>
+        </div>
+
+        <!-- Tab 1: Speaking (Container only) -->
+        <div id="tab-speaking" class="tab-content active">
+            <div class="pdf-viewer-container">
+                <!-- Content will be injected here -->
+            </div>
+        </div>
+
+        <!-- Tab 2: Exam (듣기 & 읽기 통합) -->
+        <div id="tab-exam" class="tab-content">
+            <div class="pdf-viewer-container">
+                <!-- Exam-only compact navigation -->
+                <div id="examNavBar"
+                    style="display:flex; align-items:center; justify-content:center; gap:12px; padding:10px 16px; background:linear-gradient(135deg,#f8fafc,#e2e8f0); border-radius:10px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.08); position:sticky; top:0; z-index:100;">
+                    <button onclick="if(currentPage>1){renderPage(currentPage-1);}"
+                        style="padding:8px 18px; background:#4f46e5; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:14px; transition:all 0.2s; display:flex; align-items:center; gap:5px;"
+                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                        <span>◀</span> 이전
+                    </button>
+                    <div
+                        style="background:white; padding:6px 12px; border-radius:6px; border:1px solid #cbd5e1; display:flex; align-items:center; gap:10px;">
+                        <span id="examPageInfo"
+                            style="font-size:14px; font-weight:bold; color:#1e293b; min-width:60px; text-align:center;">1
+                            / ?</span>
+                    </div>
+                    <button onclick="if(pdfDoc && currentPage<pdfDoc.numPages){renderPage(currentPage+1);}"
+                        style="padding:8px 18px; background:#4f46e5; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:14px; transition:all 0.2s; display:flex; align-items:center; gap:5px;"
+                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                        다음 <span>▶</span>
+                    </button>
+                    <span style="color:#94a3b8; font-size:12px; margin:0 5px;">|</span>
+                    <label style="font-size:12px; color:#64748b; font-weight:bold;">페이지 이동:</label>
+                    <input type="number" id="examPageJump" min="1"
+                        style="width:65px; padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; text-align:center; font-weight:bold;"
+                        onchange="const v=parseInt(this.value);if(v>=1&&pdfDoc&&v<=pdfDoc.numPages)renderPage(v);">
+                </div>
+                <div class="quiz-container">
+                    <div class="quiz-main-area" style="position:relative;">
+                        <!-- PDF Viewer will be injected here by switchTab -->
+                    </div>
+                    <div class="quiz-side-panel" style="overflow-y:auto; padding:15px;">
+                        <!-- OMR cards generated dynamically by scanPageForQuestions -->
+                        <div style="text-align:center; color:#999; padding:20px;">
+                            <p>PDF를 선택하면 문항이 자동으로 추출됩니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Grammar -->
+        <!-- Tab 4: Grammar & Vocabulary -->
+        <div id="tab-grammar" class="tab-content">
+            <div class="quiz-container-wrapper">
+                <!-- PDF Area (Left) -->
+                <div class="quiz-main-area" style="position: relative;">
+                    <!-- content injected by switchTab -->
+                </div>
+
+                <!-- Dictionary Side Panel (Right) -->
+                <div class="quiz-side-panel"
+                    style="display:flex; flex-direction:column; gap:15px; overflow-y:auto; padding:15px;">
+                    <div class="panel-header"
+                        style="border-bottom:2px solid #ddd; padding-bottom:10px; margin-bottom:10px;">
+                        <h3 style="font-size:1.1rem; color:#333;">📖 문법/어휘 사전</h3>
+                        <p style="font-size:0.8rem; color:#666;">검색을 통해 학습 효율을 높이세요.</p>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="search-box" style="display:flex; gap:5px;">
+                        <input type="text" id="dictSearchInput" placeholder="단어, 문법 패턴 검색..."
+                            style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;"
+                            onkeypress="if(event.key==='Enter') searchDictionary()">
+                        <button onclick="searchDictionary()"
+                            style="padding:8px 12px; background:#4f46e5; color:white; border:none; border-radius:4px; cursor:pointer;">
+                            검색
+                        </button>
+                    </div>
+
+                    <!-- Search Results -->
+                    <div id="dictSearchResults" style="flex:1; overflow-y:auto;">
+                        <div style="text-align:center; color:#999; margin-top:20px;">
+                            <p>검색어를 입력하세요.</p>
+                            <p style="font-size:0.8rem;">예: -(으)ㄴ/는 것 같다, 학교, 공부하다</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 KoreanTalk. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // PDF.js 워커 설정
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // 전역 상태
+        let db = null;
+        let pdfDoc = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        let isPlaying = false;
+        let isAutoMode = false; // 자동 재생 모드 여부
+        let autoPlayTimer = null;
+        let remainingTime = 0;
+        let timerInterval = null;
+        let currentPdfId = null;
+        let pageSettings = {};
+        let ttsRate = 1.0;
+        let currentPdfSection = '';
+        let enableGuideSound = true;
+        let enableStartSound = true; // 현재 PDF의 섹션 (speaking, grammar 등)
+        let pdfScale = 1.5; // [New] PDF 확대/축소 비율 (기본 1.5)
+
+        const DB_NAME = 'KoreanTalkDB';
+        const STORE_NAME = 'pdfs';
+
+        const elements = {
+            pdfList: document.getElementById('pdfList'),
+            pdfSelector: document.getElementById('pdfSelector'),
+            pdfViewerSection: document.getElementById('pdfViewerSection'),
+            noteDisplayArea: document.getElementById('noteDisplayArea'),
+            noteContent: document.getElementById('noteContent'),
+            playNoteBtn: document.getElementById('playNoteBtn'),
+            pageNoteText: document.getElementById('pageNoteText'),
+            testNoteTtsBtn: document.getElementById('testNoteTtsBtn'),
+            pdfCanvas: document.getElementById('pdfCanvas'),
+            pageNum: document.getElementById('pageNum'),
+            pageCount: document.getElementById('pageCount'),
+            progressBar: document.getElementById('progressBar'),
+            progressText: document.getElementById('progressText'),
+            autoPlayBtn: document.getElementById('autoPlayBtn'),
+            autoStopBtn: document.getElementById('autoStopBtn'),
+            pagePlayBtn: document.getElementById('pagePlayBtn'),
+            pageStopBtn: document.getElementById('pageStopBtn'),
+            mainGoToFirstBtn: document.getElementById('mainGoToFirstBtn'),
+            prevBtn: document.getElementById('prevBtn'),
+            nextBtn: document.getElementById('nextBtn'),
+            settingsBtn: document.getElementById('settingsBtn'),
+            settingsPanel: document.getElementById('settingsPanel'),
+            closeSettingsBtn: document.getElementById('closeSettingsBtn'),
+            pageTtsText: document.getElementById('pageTtsText'),
+            pageTtsDelay: document.getElementById('pageTtsDelay'),
+            saveTtsBtn: document.getElementById('saveTtsBtn'),
+            testTtsBtn: document.getElementById('testTtsBtn'),
+            ttsSpeed: document.getElementById('ttsSpeed'),
+            ttsSpeedValue: document.getElementById('ttsSpeedValue'),
+            quickTtsInput: document.getElementById('quickTtsInput'),
+            saveQuickTtsBtn: document.getElementById('saveQuickTtsBtn')
+        };
+
+        // DB 초기화
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (event) => {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // PDF 목록 표시 (탭 필터링 적용)
+        async function displayPdfList() {
+            if (!db) await initDB();
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const allPdfs = request.result;
+
+                // Active Tab Determination
+                const activeTabBtn = document.querySelector('.tab-btn.active');
+                let filterSection = "";
+                if (activeTabBtn) {
+                    if (activeTabBtn.textContent.includes('말하기')) filterSection = 'speaking';
+                    else if (activeTabBtn.textContent.includes('듣기&읽기') || activeTabBtn.textContent.includes('Exam')) filterSection = 'exam';
+                    else if (activeTabBtn.textContent.includes('듣기')) filterSection = 'listening';
+                    else if (activeTabBtn.textContent.includes('읽기')) filterSection = 'reading';
+                    else if (activeTabBtn.textContent.includes('문법')) filterSection = 'grammar';
+                }
+
+                // Filter logic
+                let filteredPdfs = allPdfs;
+                if (filterSection) {
+                    if (filterSection === 'exam') {
+                        filteredPdfs = allPdfs.filter(p => p.section === 'exam' || p.section === 'listening' || p.section === 'reading');
+                    } else {
+                        filteredPdfs = allPdfs.filter(p => p.section === filterSection);
+                    }
+                }
+
+                elements.pdfList.innerHTML = '';
+                if (filteredPdfs.length === 0) {
+                    if (filterSection) {
+                        const secName = { 'speaking': '말하기', 'listening': '듣기', 'reading': '읽기', 'grammar': '문법' }[filterSection];
+                        elements.pdfList.innerHTML = `<p style="color:#666;">[${secName}] 섹션에 등록된 PDF가 없습니다. <br><a href="pdf-manager.html" style="color:blue; text-decoration:underline;">관리 페이지</a>에서 추가할 때 카테고리를 선택해주세요.</p>`;
+                    } else {
+                        elements.pdfList.innerHTML = '<p>저장된 PDF가 없습니다. 관리 페이지에서 추가해주세요.</p>';
+                    }
+                    return;
+                }
+
+                filteredPdfs.forEach(pdf => {
+                    const item = document.createElement('div');
+                    item.className = 'pdf-item';
+                    item.style.cssText = 'padding:15px; background:white; border-radius:8px; margin-bottom:10px; cursor:pointer; border:1px solid #e2e8f0; color:#000000 !important; box-shadow:0 1px 3px rgba(0,0,0,0.1); transition:transform 0.2s, box-shadow 0.2s;';
+                    item.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="flex:1;">
+                                            <strong style="font-size:1.05rem; color:#000000 !important; font-weight:900;">${pdf.name}</strong>
+                                            ${!filterSection ? `<span style="font-size:0.75rem; color:#666; background:#eee; padding:2px 6px; border-radius:4px; margin-left:5px;">${pdf.section || '미분류'}</span>` : ''}
+                                        </div>
+                                        <span style="font-size:0.85rem; color:#334155; background:#f1f5f9; padding:4px 8px; border-radius:4px; white-space:nowrap; margin-left:10px;">${pdf.pages}p</span>
+                                      </div>`;
+                    item.onmouseover = () => {
+                        item.style.transform = 'translateY(-2px)';
+                        item.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                        item.style.borderColor = '#cbd5e1';
+                    };
+                    item.onmouseout = () => {
+                        item.style.transform = 'none';
+                        item.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                        item.style.borderColor = '#e2e8f0';
+                    };
+                    item.onclick = () => loadPdf(pdf);
+                    elements.pdfList.appendChild(item);
+                });
+            };
+        }
+
+        // PDF 로드
+        async function loadPdf(pdf) {
+            currentPdfId = pdf.id;
+            console.log("PDF Loading:", pdf.name, "ID:", currentPdfId);
+
+            const loadingTask = pdfjsLib.getDocument({ data: pdf.data });
+            pdfDoc = await loadingTask.promise;
+            totalPages = pdfDoc.numPages;
+            totalPages = pdfDoc.numPages;
+            elements.pageCount.textContent = totalPages;
+            currentPdfSection = pdf.section || '';
+
+            // 섹션에 따라 기본 사운드 설정 적용 (UI 반영)
+            loadSoundSettings();
+
+            // 문법/어휘 섹션이면 기본적으로 소리를 끔 (사용자가 켤 수 있음)
+            if (currentPdfSection !== 'speaking') {
+                // 이미 로컬스토리지에 저장된 값이 있다면 그걸 따르고, 없다면 false로 초기화
+                if (localStorage.getItem('koreantalk_sound_guide') === null) {
+                    enableGuideSound = false;
+                    document.getElementById('enableGuideSound').checked = false;
+                }
+                if (localStorage.getItem('koreantalk_sound_start') === null) {
+                    enableStartSound = false;
+                    document.getElementById('enableStartSound').checked = false;
+                }
+            }
+
+            console.log("Current PDF Section:", currentPdfSection);
+
+            // 1. 기존 저장된 설정 로드
+            const storedSettings = localStorage.getItem(`koreantalk_pdf_settings_${currentPdfId}`);
+            pageSettings = storedSettings ? JSON.parse(storedSettings) : {};
+
+            // 2. result.js 데이터 강제 동기화 (PDF 원본 텍스트 기준)
+            // 중요: 말하기 (speaking) PDF에 대해서만 result.js 데이터를 적용합니다.
+            // 문법 및 다른 섹션의 PDF는 별도의 독립적인 데이터를 가지거나 빈 상태여야 합니다.
+            if (pdf.section === 'speaking') {
+                if (typeof resultDataRaw !== 'undefined' && resultDataRaw.length > 0) {
+                    console.log("result.js 데이터 동기화 시작 (pdf-stt와 동일 로직) - Speaking Only");
+                    resultDataRaw.forEach(p => {
+                        const pageNum = p.page;
+                        // pdf-stt와 동일하게 pdf_text를 기본 소스로 사용
+                        let rawText = (p.pdf_text || "").trim();
+
+                        // 노이즈 제거 (3자 이상의 연속된 숫자열 줄)
+                        let cleanedText = rawText.replace(/^[\d\s]{3,}\n/gm, "").trim();
+                        const times = parseTimes(cleanedText);
+
+                        // Note 분리 로직 (Note. 또는 대답: 키워드 기준)
+                        let mainText = cleanedText;
+                        let noteText = "";
+                        const splitMatch = mainText.match(/(Note\s*\.?\s*|대\s*답\s*[:\.]?\s*\n)/i);
+                        if (splitMatch) {
+                            const splitIdx = splitMatch.index;
+                            noteText = mainText.substring(splitIdx).trim();
+                            mainText = mainText.substring(0, splitIdx).trim();
+                        }
+
+                        // 수동 수정 사항이 없는 페이지에 대해서만 분석 데이터 주입
+                        if (!pageSettings[pageNum] || !pageSettings[pageNum].text) {
+                            pageSettings[pageNum] = {
+                                text: mainText,
+                                prepTime: times.prep || 0,
+                                speakTime: times.speak || 5,
+                                noteText: noteText
+                            };
+                        }
+                    });
+                    console.log("데이터 동기화 완료 (Speaking)");
+                }
+            } else {
+                console.log(`[Info] 현재 섹션(${pdf.section})은 speaking이 아니므로 result.js 데이터를 적용하지 않습니다.`);
+            }
+
+            elements.pdfSelector.style.display = 'none';
+            elements.pdfViewerSection.style.display = 'block';
+
+            renderPage(1);
+
+            // Refresh current tab structure to ensure viewer is placed correctly
+            const activeTabBtn = document.querySelector('.tab-btn.active');
+            let activeTabName = 'speaking';
+            if (activeTabBtn) {
+                if (activeTabBtn.textContent.includes('듣기&읽기')) activeTabName = 'exam';
+                else if (activeTabBtn.textContent.includes('문법')) activeTabName = 'grammar';
+                else if (activeTabBtn.textContent.includes('말하기')) activeTabName = 'speaking';
+            }
+            switchTab(activeTabName);
+        }
+
+        function parseTimes(text) {
+            if (!text) return { prep: 0, speak: 0 };
+            const prepMatch = text.match(/(\d+)\s*초\s*동안\s*준비/);
+            const speakMatch = text.match(/(\d+)\s*초\s*동안\s*말|(\d+)\s*초\s*동안\s*이야기/);
+            return {
+                prep: prepMatch ? parseInt(prepMatch[1]) : 0,
+                speak: speakMatch ? parseInt(speakMatch[1] || speakMatch[2]) : 0
+            };
+        }
+
+        // 페이지 렌더링
+        async function renderPage(num) {
+            currentPage = num;
+            elements.pageNum.textContent = currentPage;
+
+            const page = await pdfDoc.getPage(num);
+            // [Modified] Use dynamic pdfScale
+            const viewport = page.getViewport({ scale: pdfScale });
+            const canvas = elements.pdfCanvas;
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            await page.render(renderContext).promise;
+
+            // 페이지 설정 로드 (UI 동기화)
+            loadPageSettings();
+
+            if (isPlaying) {
+                startPageLogic();
+            }
+        }
+
+        function loadPageSettings() {
+            const settings = pageSettings[currentPage] || {};
+
+            // 데이터 필드를 'text'로 통일 (기존 지저분한 ttsText는 완전히 무시)
+            const mainText = settings.text !== undefined ? settings.text : "";
+            elements.pageTtsText.value = mainText;
+
+            elements.pageTtsDelay.value = settings.speakTime || settings.ttsDelay || 2;
+            elements.pageNoteText.value = settings.noteText || '';
+
+            // Note UI 및 대시보드 업데이트 (말하기 탭에서만 표시)
+            const activeTab = document.querySelector('.tab-btn.active');
+            const isSpeakingTab = activeTab && activeTab.textContent.includes('말하기');
+
+            if (isSpeakingTab && settings.noteText) {
+                elements.noteDisplayArea.style.display = 'block';
+                elements.noteContent.textContent = settings.noteText;
+            } else {
+                elements.noteDisplayArea.style.display = 'none';
+            }
+
+            // Live 가이드 대시보드 업데이트
+            const contextArea = document.getElementById('sttContextArea');
+            const snippet = document.getElementById('sttSnippet');
+            const timeInfo = document.getElementById('sttTimeInfo');
+
+            if (isSpeakingTab) {
+                contextArea.style.display = 'block';
+                if (mainText || settings.prepTime || settings.speakTime) {
+                    snippet.textContent = mainText || "(본문 텍스트 없음)";
+                    snippet.style.color = "#1e293b";
+                    snippet.style.fontStyle = "normal";
+
+                    let timeHtml = '';
+                    if (settings.prepTime) {
+                        timeHtml += `<span style="color: #d97706; background: #fef3c7; padding: 4px 10px; border-radius: 6px;">⌛ 준비 ${settings.prepTime}초</span>`;
+                    }
+                    if (settings.speakTime) {
+                        timeHtml += `<span style="color: #2563eb; background: #dbeafe; padding: 4px 10px; border-radius: 6px;">🗣️ 말하기 ${settings.speakTime}초</span>`;
+                    }
+                    timeInfo.innerHTML = timeHtml;
+                } else {
+                    snippet.textContent = "가이드 데이터가 없습니다. 기본 설정(5초 자동 재생)이 적용됩니다.";
+                    snippet.style.color = "#94a3b8";
+                    snippet.style.fontStyle = "italic";
+                    timeInfo.innerHTML = `<span style="color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 6px;">⚙️ 기본 5초</span>`;
+                }
+            } else {
+                contextArea.style.display = 'none';
+            }
+
+            // 추가된 시간 설정 표시
+            if (document.getElementById('pagePrepTime')) {
+                document.getElementById('pagePrepTime').value = settings.prepTime || 0;
+            }
+        }
+
+        // 오디오 재생 헬퍼 (볼륨 조절 기능 추가)
+        function playSound(src, volume = 1.0) {
+            return new Promise((resolve) => {
+                const audio = new Audio(src);
+                audio.volume = volume; // 볼륨 설정 (0.0 ~ 1.0)
+                audio.onended = resolve;
+                audio.onerror = () => { console.warn("Audio missing:", src); resolve(); };
+                audio.play().catch(resolve);
+            });
+        }
+
+        // TTS 재생 핵심 엔진
+        function speakText(text, callback) {
+            if (!text) {
+                if (callback) callback();
+                return;
+            }
+            // 기존 재생 중인 음성 취소
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ko-KR';
+            utterance.rate = ttsRate; // 전역 설정된 속도 적용
+
+            utterance.onend = () => {
+                if (callback) callback();
+            };
+
+            utterance.onerror = (e) => {
+                console.error("TTS 재생 에러:", e);
+                if (callback) callback();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // TTS 재생 헬퍼 (Promise 기반)
+        function speakTextPromise(text) {
+            return new Promise((resolve) => {
+                if (!text) return resolve();
+                speakText(text, resolve);
+            });
+        }
+
+        // 페이지 시퀀스 관리 (섹션별 분기)
+        async function startPageLogic() {
+            if (!isPlaying) return;
+            stopTimers();
+
+            // 분기: 말하기(Speaking) 외의 섹션은 단순 뷰만 제공 (소리 X)
+            if (currentPdfSection !== 'speaking') {
+                await startSimpleViewLogic();
+            } else {
+                await startSpeakingLogic();
+            }
+
+            // 공통 종료 처리: 다음 페이지 (자동 모드일 때만)
+            if (isPlaying) {
+                if (isAutoMode) {
+                    if (currentPage < totalPages) {
+                        renderPage(currentPage + 1);
+                    } else {
+                        stopPlayback();
+                        alert('전체 학습이 완료되었습니다!');
+                    }
+                } else {
+                    // 단일 재생 모드 종료
+                    stopPlayback();
+                    elements.progressText.textContent = '수동 재생 완료';
+                }
+            }
+        }
+
+        // [New] 단순 뷰 로직 (문법/어휘 등) - 소리 없음, 단순 시간 대기
+        async function startSimpleViewLogic() {
+            const settings = pageSettings[currentPage] || {};
+            const viewTime = (settings.speakTime || 5) * 1000;
+
+            // 1. 안내음 (옵션)
+            if (enableGuideSound) {
+                elements.progressText.textContent = `안내 시작`;
+                await playSound('./data/sound_qstart.mp3', 0.5);
+                if (!isPlaying) return;
+            }
+
+            elements.progressText.textContent = `학습중 (${viewTime / 1000}초)`;
+
+            // 2. 대기 (학습 시간)
+            await startCountdown(viewTime, "#8b5cf6");
+
+            // 3. 종료음 (옵션)
+            if (enableStartSound) {
+                await playSound('./data/sound_speak.mp3', 0.5);
+            }
+        }
+
+        // [Legacy] 말하기(Speaking) 전용 로직 - 벨소리, TTS, 준비/말하기 단계
+        async function startSpeakingLogic() {
+            const settings = pageSettings[currentPage] || {};
+            const text = settings.text || settings.ttsText;
+            const prepTime = (settings.prepTime || 0) * 1000;
+            const speakTime = (settings.speakTime || 5) * 1000;
+
+            // 1. 안내음 재생 (옵션 적용)
+            if (enableGuideSound) {
+                elements.progressText.textContent = `안내 시작`;
+                await playSound('./data/sound_qstart.mp3', 0.5);
+                if (!isPlaying) return;
+            }
+
+            // 2. 본문 낭독 (이건 말하기 섹션의 핵심이므로 소리 설정과 무관하게 유지 or TTS이므로 별개)
+            if (text) {
+                elements.progressText.textContent = `본문 낭독 중`;
+                const audioPath = `./data/voice/book1/page_${currentPage}.mp3`;
+
+                // 파일 재생 시도
+                let audioSuccess = false;
+                try {
+                    const audio = new Audio(audioPath);
+                    const canPlay = await new Promise(res => {
+                        audio.oncanplaythrough = () => res(true);
+                        audio.onerror = () => res(false);
+                        setTimeout(() => res(false), 1000);
+                    });
+
+                    if (canPlay) {
+                        console.log(`페이지 ${currentPage}: 고품질 MP3 재생`);
+                        await new Promise(resolve => {
+                            audio.onended = resolve;
+                            audio.play().catch(() => resolve());
+                        });
+                        audioSuccess = true;
+                    }
+                } catch (e) {
+                    console.log("MP3 재생 실패, TTS로 전환합니다.");
+                }
+
+                if (!audioSuccess) {
+                    console.log(`페이지 ${currentPage}: 브라우저 TTS 사용`);
+                    await speakTextPromise(text);
+                }
+
+                if (!isPlaying) return;
+            }
+
+            // 3. 준비 시간 (대기)
+            if (prepTime > 0) {
+                elements.progressText.textContent = `준비 시간`;
+                await startCountdown(prepTime, "#f4b400"); // 노란색
+                if (!isPlaying) return;
+            }
+
+            // 4. 시작 신호음 (옵션 적용)
+            if (enableStartSound) {
+                elements.progressText.textContent = `신호 대기`;
+                await playSound('./data/sound_speak.mp3', 0.5);
+                if (!isPlaying) return;
+            }
+
+            // 5. 말하기 시간 (실전)
+            elements.progressText.textContent = `말하기 시간`;
+            await startCountdown(speakTime, "#4285f4"); // 파란색
+        }
+
+        function saveSoundSettings() {
+            enableGuideSound = document.getElementById('enableGuideSound').checked;
+            enableStartSound = document.getElementById('enableStartSound').checked;
+            localStorage.setItem('koreantalk_sound_guide', enableGuideSound);
+            localStorage.setItem('koreantalk_sound_start', enableStartSound);
+        }
+
+        function loadSoundSettings() {
+            const guide = localStorage.getItem('koreantalk_sound_guide');
+            const start = localStorage.getItem('koreantalk_sound_start');
+
+            // 기본값: true (저장된 값이 없으면)
+            enableGuideSound = guide !== null ? (guide === 'true') : true;
+            enableStartSound = start !== null ? (start === 'true') : true;
+
+            // UI에 반영
+            const guideCheckbox = document.getElementById('enableGuideSound');
+            const startCheckbox = document.getElementById('enableStartSound');
+            if (guideCheckbox) guideCheckbox.checked = enableGuideSound;
+            if (startCheckbox) startCheckbox.checked = enableStartSound;
+        }
+
+        // [New] Zoom Functions
+        function zoomIn() {
+            pdfScale += 0.25;
+            if (pdfScale > 5.0) pdfScale = 5.0; // Max Limit
+            renderPage(currentPage);
+        }
+
+        function zoomOut() {
+            pdfScale -= 0.25;
+            if (pdfScale < 0.5) pdfScale = 0.5; // Min Limit
+            renderPage(currentPage);
+        }
+
+        async function fitToWidth() {
+            if (!pdfDoc) return;
+            const page = await pdfDoc.getPage(currentPage);
+            const unscaledViewport = page.getViewport({ scale: 1 });
+            const container = document.querySelector('.pdf-canvas-container');
+
+            // 컨테이너의 실제 사용 가능 너비 (패딩 제외)
+            const availableWidth = container.clientWidth - 40; // 여유분
+
+            // 비율 계산
+            const newScale = availableWidth / unscaledViewport.width;
+
+            console.log("Fit Width Scale:", newScale);
+            pdfScale = newScale;
+            renderPage(currentPage);
+
+            // UI 피드백 (선택사항)
+            elements.progressText.textContent = `너비 맞춤 완료`;
+        }
+
+        window.zoomIn = zoomIn;
+        window.zoomOut = zoomOut;
+        window.fitToWidth = fitToWidth;
+
+        function startCountdown(ms, color = "#4caf50") {
+            return new Promise((resolve) => {
+                remainingTime = ms;
+                const interval = 100;
+                const total = ms;
+                elements.progressBar.style.backgroundColor = color;
+
+                timerInterval = setInterval(() => {
+                    remainingTime -= interval;
+                    const progress = (remainingTime / total) * 100;
+                    elements.progressBar.style.width = `${progress}%`;
+                    elements.progressText.textContent = `${Math.ceil(remainingTime / 1000)}초`;
+
+                    if (remainingTime <= 0) {
+                        stopTimers();
+                        resolve();
+                    }
+                }, interval);
+            });
+        }
+
+        function stopTimers() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            isAutoMode = false;
+            stopTimers();
+            window.speechSynthesis.cancel();
+            // 버튼 토글 제거
+            elements.progressBar.style.width = '0%';
+            elements.progressText.textContent = '정지됨';
+        }
+
+        // 이벤트 바인딩
+        elements.autoPlayBtn.onclick = () => {
+            isPlaying = true;
+            isAutoMode = true;
+            startPageLogic();
+        };
+
+        elements.autoStopBtn.onclick = stopPlayback;
+
+        elements.pagePlayBtn.onclick = () => {
+            isPlaying = true;
+            isAutoMode = false; // 현재 페이지만 재생
+            startPageLogic();
+        };
+
+        elements.pageStopBtn.onclick = stopPlayback;
+
+        elements.mainGoToFirstBtn.onclick = () => {
+            stopPlayback();
+            renderPage(1);
+        };
+
+        elements.prevBtn.onclick = () => {
+            if (currentPage > 1) {
+                stopPlayback();
+                renderPage(currentPage - 1);
+            }
+        };
+
+        elements.nextBtn.onclick = () => {
+            if (currentPage < totalPages) {
+                stopPlayback();
+                renderPage(currentPage + 1);
+            }
+        };
+
+        elements.settingsBtn.onclick = () => {
+            // 강제 데이터 클리닝: 지저분한 구버전 필드(ttsText)가 있다면 현재 페이지 설정에서 제거
+            if (pageSettings[currentPage] && pageSettings[currentPage].ttsText !== undefined) {
+                delete pageSettings[currentPage].ttsText;
+            }
+            loadPageSettings();
+            elements.settingsPanel.style.display = 'block';
+        };
+
+        elements.closeSettingsBtn.onclick = () => {
+            elements.settingsPanel.style.display = 'none';
+        };
+
+        elements.saveTtsBtn.onclick = () => {
+            if (!pageSettings[currentPage]) pageSettings[currentPage] = {};
+            pageSettings[currentPage].text = elements.pageTtsText.value;
+            pageSettings[currentPage].noteText = elements.pageNoteText.value;
+            pageSettings[currentPage].prepTime = parseInt(document.getElementById('pagePrepTime').value) || 0;
+            pageSettings[currentPage].speakTime = parseInt(elements.pageTtsDelay.value) || 0;
+            localStorage.setItem(`koreantalk_pdf_settings_${currentPdfId}`, JSON.stringify(pageSettings));
+            alert('저장되었습니다.');
+        };
+
+        elements.playNoteBtn.onclick = () => {
+            speakTextPromise(elements.noteContent.textContent);
+        };
+
+        elements.testNoteTtsBtn.onclick = () => {
+            speakTextPromise(elements.pageNoteText.value);
+        };
+
+        elements.saveQuickTtsBtn.onclick = () => {
+            if (!pageSettings[currentPage]) pageSettings[currentPage] = {};
+            pageSettings[currentPage].text = elements.quickTtsInput.value;
+            pageSettings[currentPage].speakTime = 2;
+            localStorage.setItem(`koreantalk_pdf_settings_${currentPdfId}`, JSON.stringify(pageSettings));
+            elements.pageTtsText.value = elements.quickTtsInput.value;
+            alert('저장되었습니다.');
+        };
+
+        elements.testTtsBtn.onclick = () => {
+            speakText(elements.pageTtsText.value);
+        };
+
+        elements.ttsSpeed.oninput = (e) => {
+            ttsRate = parseFloat(e.target.value);
+            elements.ttsSpeedValue.textContent = `${ttsRate.toFixed(1)}x`;
+        };
+
+        // ----------------------------------------------------
+        // New Feature: Tabs and Quiz Logic
+        // ----------------------------------------------------
+
+        // Tab Switching
+        function switchTab(tabName) {
+            // Update Buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if ((tabName === 'speaking' && btn.textContent.includes('말하기')) ||
+                    (tabName === 'exam' && btn.textContent.includes('듣기&읽기')) ||
+                    (tabName === 'grammar' && btn.textContent.includes('문법'))) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update Content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            const targetTab = document.getElementById(`tab-${tabName}`);
+            if (targetTab) targetTab.classList.add('active');
+
+            // Shared PDF Viewer Visibility Logic
+            const pdfViewerSection = document.getElementById('pdfViewerSection');
+            const pdfSelector = document.getElementById('pdfSelector');
+            const pdfLoaded = pdfViewerSection.style.display !== 'none';
+
+            if (!pdfLoaded && pdfSelector.style.display !== 'none') {
+                displayPdfList();
+            }
+
+            // Common function to inject content into target
+            const injectContent = (container) => {
+                container.innerHTML = '';
+                if (!pdfLoaded) {
+                    container.appendChild(pdfSelector);
+                    pdfSelector.style.display = 'block';
+                } else {
+                    container.appendChild(pdfViewerSection);
+                    pdfSelector.style.display = 'none';
+                    pdfViewerSection.style.display = 'block';
+                    pdfViewerSection.style.overflow = 'visible';
+
+                    // Speaking-only controls
+                    const stt = document.querySelector('.live-dashboard');
+                    const prog = document.querySelector('.progress-bar-container');
+                    const mainPlaySection = document.querySelector('.main-play-section');
+                    const noteArea = document.getElementById('noteDisplayArea');
+                    const settingsPanel = document.getElementById('settingsPanel');
+
+                    if (tabName === 'exam' || tabName === 'grammar') {
+                        pdfViewerSection.style.height = 'auto';
+                        pdfViewerSection.style.width = '100%';
+                        pdfViewerSection.style.boxShadow = 'none';
+                        pdfViewerSection.style.borderRadius = '0';
+                        // Hide speaking-only controls
+                        if (stt) stt.style.display = 'none';
+                        if (prog) prog.style.display = 'none';
+                        if (mainPlaySection) mainPlaySection.style.display = 'none';
+                        if (noteArea) noteArea.style.display = 'none';
+                        if (settingsPanel) settingsPanel.style.display = 'none';
+                    } else {
+                        // Speaking tab: show everything
+                        pdfViewerSection.style.height = 'auto';
+                        if (stt) stt.style.display = 'block';
+                        if (prog) prog.style.display = 'block';
+                        if (mainPlaySection) mainPlaySection.style.display = 'flex';
+                    }
+                }
+            };
+
+            if (tabName === 'exam' || tabName === 'grammar') {
+                const targetContainer = document.querySelector(`#tab-${tabName} .quiz-main-area`);
+                if (targetContainer) {
+                    injectContent(targetContainer);
+                }
+                // Trigger Scan for exam tab
+                if (pdfLoaded && typeof pdfDoc !== 'undefined' && pdfDoc && tabName === 'exam') {
+                    scanPageForQuestions(currentPage);
+                }
+
+                // [New] Auto-fit PDF width for better visibility in split view
+                if (pdfLoaded) {
+                    setTimeout(() => {
+                        if (typeof fitToWidth === 'function') fitToWidth();
+                    }, 100);
+                }
+            } else if (tabName === 'speaking') {
+                const targetContainer = document.querySelector('#tab-speaking .pdf-viewer-container');
+                if (targetContainer) {
+                    injectContent(targetContainer);
+                }
+            }
+        }
+
+        // (Old mock data and quiz functions removed — replaced by unified exam logic)
+        // Kept for backward compat: selectChoice is no longer needed for old tabs
+        const mockListeningData = [
+            {
+                id: 1,
+                audio: "data/sound_qstart.mp3", // Placeholder
+                transcript: "다음은 무엇에 대해 이야기하고 있습니까? 알맞은 것을 고르십시오.\n(남): 요즘 날씨가 많이 더워졌죠?\n(여): 네, 벌써 여름이 온 것 같아요.",
+                question: "무엇에 대해 이야기하고 있습니까?",
+                choices: ["계절", "휴가", "직업", "교통"],
+                answer: 0 // 0-indexed
+            },
+            {
+                id: 2,
+                audio: "data/sound_speak.mp3", // Placeholder
+                transcript: "다음을 듣고 여자의 이어질 행동으로 알맞은 것을 고르십시오.\n(남): 김 대리님, 회의 준비는 다 끝나셨나요?\n(여): 아, 자료 복사를 깜빡했네요. 지금 바로 다녀오겠습니다.",
+                question: "여자는 이어서 무엇을 하겠습니까?",
+                choices: ["회의를 시작한다", "자료를 복사한다", "커피를 마신다", "전화를 받는다"],
+                answer: 1
+            }
+        ];
+
+        const mockReadingData = [
+            {
+                id: 1,
+                passage: "최근 1인 가구가 증가하면서 소포장 제품이 인기를 끌고 있다. 대형 마트들도 이에 맞춰 채소나 과일을 하나씩 낱개로 포장하여 판매하기 시작했다. 이로 인해 식재료를 낭비하지 않고 필요한 만큼만 살 수 있어 소비자들의 반응이 긍정적이다.",
+                question: "윗글의 중심 생각으로 알맞은 것을 고르십시오.",
+                choices: ["대형 마트의 매출이 감소하고 있다.", "소포장 제품이 환경 오염의 원인이다.", "1인 가구 증가로 소포장 제품이 인기다.", "과일 가격이 점점 비싸지고 있다."],
+                answer: 2
+            },
+            {
+                id: 2,
+                passage: "안내 말씀 드립니다. 우리 도서관에서는 다음 주 월요일부터 일주일간 내부 공사를 진행합니다. 공사 기간 동안 열람실 이용이 제한되오니, 이용자 여러분의 양해 부탁드립니다. 도서 대출 및 반납은 1층 안내 데스크에서 정상적으로 이용 가능합니다.",
+                question: "윗글의 내용과 일치하는 것을 고르십시오.",
+                choices: ["공사는 한 달 동안 진행된다.", "공사 기간에는 책을 빌릴 수 없다.", "열람실은 2층으로 옮겨진다.", "대출과 반납은 1층에서 할 수 있다."],
+                answer: 3
+            }
+        ];
+
+        let quizState = {
+            listening: { index: 0, answers: {}, score: 0 },
+            reading: { index: 0, answers: {}, score: 0 }
+        };
+
+        // Listening Functions
+        function loadListeningQuiz() {
+            renderListeningQuestion();
+        }
+
+        function renderListeningQuestion() {
+            const idx = quizState.listening.index;
+            const data = mockListeningData[idx];
+            if (!data) return;
+
+            document.getElementById('l-q-num').textContent = idx + 1;
+            document.getElementById('l-q-text').textContent = data.question;
+            document.getElementById('transcriptText').textContent = data.transcript || "";
+            document.getElementById('listeningTranscript').style.display = "none"; // Reset transcript view
+
+            // Audio (Using placeholder/data)
+            const player = document.getElementById('quizAudioPlayer');
+            player.src = data.audio;
+            // player.play(); // Auto-play might be blocked by browser policy without interaction
+
+            // Choices
+            const choicesContainer = document.getElementById('l-choices');
+            choicesContainer.innerHTML = '';
+            data.choices.forEach((choice, i) => {
+                const div = document.createElement('div');
+                div.className = `choice-item ${quizState.listening.answers[idx] === i ? 'selected' : ''}`;
+                div.innerHTML = `<span class="choice-marker">${i + 1}</span> ${choice}`;
+                div.onclick = () => selectChoice('listening', i);
+                choicesContainer.appendChild(div);
+            });
+        }
+
+        function prevListeningQuestion() {
+            if (quizState.listening.index > 0) {
+                quizState.listening.index--;
+                renderListeningQuestion();
+            }
+        }
+
+        function nextListeningQuestion() {
+            if (quizState.listening.index < mockListeningData.length - 1) {
+                quizState.listening.index++;
+                renderListeningQuestion();
+            } else {
+                alert("마지막 문제입니다.");
+            }
+        }
+
+        function checkListeningAnswer() {
+            const idx = quizState.listening.index;
+            const data = mockListeningData[idx];
+            const userAns = quizState.listening.answers[idx];
+
+            if (userAns === undefined) {
+                alert("정답을 선택해주세요.");
+                return;
+            }
+
+            const isCorrect = userAns === data.answer;
+            const choices = document.getElementById('l-choices').children;
+
+            // visual feedback
+            for (let i = 0; i < choices.length; i++) {
+                choices[i].classList.remove('selected', 'correct', 'wrong');
+                if (i === data.answer) choices[i].classList.add('correct');
+                else if (i === userAns) choices[i].classList.add('wrong');
+            }
+
+            // Show transcript on check
+            document.getElementById('listeningTranscript').style.display = 'block';
+
+            if (isCorrect) alert("정답입니다! (Correct)");
+            else alert("오답입니다. (Incorrect)");
+        }
+
+
+        // Reading Functions
+        function loadReadingQuiz() {
+            renderReadingQuestion();
+        }
+
+        function renderReadingQuestion() {
+            const idx = quizState.reading.index;
+            const data = mockReadingData[idx];
+            if (!data) return;
+
+            document.getElementById('r-q-num').textContent = idx + 1;
+            document.getElementById('r-q-text').textContent = data.question;
+            document.getElementById('readingPassage').textContent = data.passage;
+
+            // Choices
+            const choicesContainer = document.getElementById('r-choices');
+            choicesContainer.innerHTML = '';
+            data.choices.forEach((choice, i) => {
+                const div = document.createElement('div');
+                div.className = `choice-item ${quizState.reading.answers[idx] === i ? 'selected' : ''}`;
+                div.innerHTML = `<span class="choice-marker">${i + 1}</span> ${choice}`;
+                div.onclick = () => selectChoice('reading', i);
+                choicesContainer.appendChild(div);
+            });
+        }
+
+        function prevReadingQuestion() {
+            if (quizState.reading.index > 0) {
+                quizState.reading.index--;
+                renderReadingQuestion();
+            }
+        }
+
+        function nextReadingQuestion() {
+            if (quizState.reading.index < mockReadingData.length - 1) {
+                quizState.reading.index++;
+                renderReadingQuestion();
+            } else {
+                alert("마지막 문제입니다.");
+            }
+        }
+
+        function checkReadingAnswer() {
+            const idx = quizState.reading.index;
+            const data = mockReadingData[idx];
+            const userAns = quizState.reading.answers[idx];
+
+            if (userAns === undefined) {
+                alert("정답을 선택해주세요.");
+                return;
+            }
+
+            const isCorrect = userAns === data.answer;
+            const choices = document.getElementById('r-choices').children;
+
+            // visual feedback
+            for (let i = 0; i < choices.length; i++) {
+                choices[i].classList.remove('selected', 'correct', 'wrong');
+                if (i === data.answer) choices[i].classList.add('correct');
+                else if (i === userAns) choices[i].classList.add('wrong');
+            }
+
+            if (isCorrect) alert("정답입니다! (Correct)");
+            else alert("오답입니다. (Incorrect)");
+        }
+
+        function selectChoice(type, choiceIndex) {
+            quizState[type].answers[quizState[type].index] = choiceIndex;
+            // Update UI immediately (single active selection)
+            const containerId = type === 'listening' ? 'l-choices' : 'r-choices';
+            const choices = document.getElementById(containerId).children;
+            for (let i = 0; i < choices.length; i++) {
+                if (i === choiceIndex) {
+                    choices[i].classList.add('selected');
+                    // Remove generic hover style conflict if needed, handled by CSS
+                } else {
+                    choices[i].classList.remove('selected');
+                }
+            }
+        }
+
+        // URL 파라미터 확인 및 초기화
+        window.onload = async () => {
+            await initDB();
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            const pdfUrl = urlParams.get('url');
+
+            if (pdfUrl) {
+                // 외부 URL에서 PDF 로드
+                try {
+                    console.log("Downloading remote PDF from:", pdfUrl);
+                    // 안내 메시지 표시 (임시)
+                    elements.pdfList.innerHTML = '<p style="text-align:center; padding:20px;">원격 PDF를 불러오는 중입니다... 잠시만 기다려주세요.</p>';
+
+                    const response = await fetch(pdfUrl);
+                    if (!response.ok) throw new Error("Network response was not ok");
+
+                    const arrayBuffer = await response.arrayBuffer();
+
+                    // 가상의 PDF 객체 생성 (기존 로직과 호환되게 data 포함)
+                    const remotePdf = {
+                        id: 'remote_' + Date.now(),
+                        name: 'Remote PDF',
+                        data: new Uint8Array(arrayBuffer),
+                        section: urlParams.get('section') || 'exam' // 기본 섹션은 exam
+                    };
+
+                    loadPdf(remotePdf);
+                } catch (error) {
+                    console.error("PDF 다운로드 실패:", error);
+                    alert("원격 PDF를 불러오지 못했습니다. URL이 올바른지 확인해주세요.");
+                    displayPdfList();
+                }
+            } else if (id) {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get(id);
+                request.onsuccess = () => {
+                    if (request.result) loadPdf(request.result);
+                    else displayPdfList();
+                };
+            } else {
+                displayPdfList();
+            }
+        };
+
+
+        // Override renderPage to trigger scan
+        const originalRenderPage = renderPage;
+        renderPage = async function (num) {
+            await originalRenderPage(num);
+            scanPageForQuestions(num);
+            // Sync Exam tab navigation bar
+            const examInfo = document.getElementById('examPageInfo');
+            if (examInfo && pdfDoc) {
+                examInfo.textContent = `${num} / ${pdfDoc.numPages}`;
+            }
+            const examJump = document.getElementById('examPageJump');
+            if (examJump) examJump.value = num;
+        };
+
+        // ------------------------------------------------------------------
+        // Enhanced Extraction Logic (Overrides previous basic scan)
+        // ------------------------------------------------------------------
+        async function scanPageForQuestions(pageNum) {
+            const activeTab = document.querySelector('.tab-content.active').id;
+            if (activeTab !== 'tab-exam') return;
+
+            console.log(`Scanning Page ${pageNum} for Exam...`);
+
+            // 0. Check for Updated User Data (LocalStorage)
+            // DB Key: koreantalk_userexam_${currentPdfId} -> { [pageNum]: [...] }
+            const userSavedData = loadUserExamData(currentPdfId, pageNum);
+            if (userSavedData) {
+                console.log(`Page ${pageNum}: User-saved Exam Data Loaded.`);
+                lastScannedData = userSavedData; // For manager
+                generateDynamicOMRFromData(activeTab, userSavedData);
+                return;
+            }
+
+            // 1. Check for Pre-Extracted Data (exam_data.js)
+            // This data is authoritative. If present, we rely on it and do NOT fallback.
+            if (typeof examDataRaw !== 'undefined' && examDataRaw.length > 0) {
+                // Strict Filter: Must have valid choices (not just ①②③④ placeholders)
+                const isPlaceholder = (q) => {
+                    if (!q.choices || q.choices.length < 2) return true;
+                    const markers = ['①', '②', '③', '④'];
+                    return q.choices.every((c, i) => c === markers[i] || c.trim() === '');
+                };
+                const preFound = examDataRaw.filter(q => q.page === pageNum && !isPlaceholder(q));
+
+                if (preFound.length > 0) {
+                    console.log(`Found ${preFound.length} valid questions in exam_data.js`);
+                    generateDynamicOMRFromData(activeTab, preFound);
+                    lastScannedData = preFound;
+                    return; // Only stop if we found valid data
+                } else {
+                    console.log('No valid questions found in exam_data.js for this page. Trying fallback scan...');
+                }
+            }
+
+            // 2. Fallback: Dynamic Heuristic Scan with Full Extraction
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                const textItems = textContent.items;
+                textItems.sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]);
+
+                const viewport = page.getViewport({ scale: 1 });
+                const pageHeight = viewport.height;
+                const footerThreshold = pageHeight * 0.15; // Bottom 15% of the page based on Y-coordinate
+
+                let lastY = -1;
+                let currentLine = "";
+                let mainLines = [];
+                let footerLines = [];
+
+                textItems.forEach(item => {
+                    if (lastY !== -1 && Math.abs(item.transform[5] - lastY) > 5) {
+                        if (currentLine) {
+                            if (lastY < footerThreshold) footerLines.push(currentLine.trim());
+                            else mainLines.push(currentLine.trim());
+                        }
+                        currentLine = "";
+                    }
+                    currentLine += item.str;
+                    lastY = item.transform[5];
+                });
+                if (currentLine) {
+                    if (lastY < footerThreshold) footerLines.push(currentLine.trim());
+                    else mainLines.push(currentLine.trim());
+                }
+
+                // Join all lines to do regex on the full text block
+                const mainText = mainLines.join('\n');
+                const footerText = footerLines.join('\n');
+                console.log('Main page text:', mainText.substring(0, 300));
+                console.log('Footer text:', footerText.substring(0, 200));
+
+                // Enhanced extraction: Find questions with "N." pattern and ①②③④ choices
+                const fallbackData = extractQuestionsFromText(mainText, footerText);
+
+                console.log(`Enhanced Scan found: ${fallbackData.length} questions`);
+                generateDynamicOMRFromData(activeTab, fallbackData);
+                lastScannedData = fallbackData;
+
+            } catch (e) {
+                console.error("Scan failed", e);
+            }
+        }
+
+        /**
+         * Extract questions + choices from full page text.
+         * Supports patterns like:
+         * - "1. 다음을 듣고 ...\n① xxx \n② yyy \n③ zzz \n④ www"
+         * - "1. question text" with choices on subsequent lines
+         */
+        function extractQuestionsFromText(mainText, footerText = "") {
+            const results = [];
+            const qSplitRegex = /(?:^|\n)\s*(\d{1,3})\s*\./g;
+            const matches = [...mainText.matchAll(qSplitRegex)];
+
+            for (let i = 0; i < matches.length; i++) {
+                const qNum = parseInt(matches[i][1]);
+                if (qNum <= 0 || qNum >= 100) continue;
+
+                const startIdx = matches[i].index;
+                const endIdx = (i + 1 < matches.length) ? matches[i + 1].index : mainText.length;
+                const block = mainText.substring(startIdx, endIdx).trim();
+
+                const textAfterNum = block.replace(/^\s*\d{1,3}\s*\.\s*/, '');
+
+                const choiceMarkers = ['①', '②', '③', '④'];
+                let questionText = textAfterNum;
+                let choices = [];
+                let hasRealChoices = false;
+                let extractedAnswerFromBlock = -1;
+
+                // Method 1: ①②③④ markers
+                const firstChoiceIdx = textAfterNum.indexOf('①');
+                if (firstChoiceIdx !== -1) {
+                    questionText = textAfterNum.substring(0, firstChoiceIdx).trim();
+                    const choicesBlock = textAfterNum.substring(firstChoiceIdx);
+
+                    for (let c = 0; c < choiceMarkers.length; c++) {
+                        const start = choicesBlock.indexOf(choiceMarkers[c]);
+                        if (start === -1) continue;
+                        if (c < 3) {
+                            const nextStart = choicesBlock.indexOf(choiceMarkers[c + 1]);
+                            const choiceText = choicesBlock.substring(
+                                start + choiceMarkers[c].length,
+                                nextStart !== -1 ? nextStart : choicesBlock.length
+                            ).trim().replace(/\n/g, ' ');
+                            choices.push(choiceText);
+                        } else {
+                            // c === 3 (4번째 보기)
+                            // 4번 보기 이후에 "\n ① 해설" 등이 딸려들어오는 것 방지
+                            let textAfter4 = choicesBlock.substring(start + choiceMarkers[c].length);
+                            let answerBoxMatch = textAfter4.search(/\n\s*([①②③④]|정답)/);
+
+                            if (answerBoxMatch !== -1) {
+                                let choice4Text = textAfter4.substring(0, answerBoxMatch).trim().replace(/\n/g, ' ');
+                                choices.push(choice4Text);
+
+                                // 남은 부분(정답 박스)에서 정답 번호 추출 (임시 변수로 클래스 외부에 저장할 수 있으나 results 푸시 때 처리)
+                                let answerBoxText = textAfter4.substring(answerBoxMatch).trim();
+                                const circleMatch = answerBoxText.match(/([①②③④])/);
+                                const numMatch = answerBoxText.match(/정답\s*[:\.]?\s*([1-4])/);
+
+                                if (numMatch) {
+                                    extractedAnswerFromBlock = parseInt(numMatch[1]) - 1;
+                                } else if (circleMatch) {
+                                    extractedAnswerFromBlock = choiceMarkers.indexOf(circleMatch[1]);
+                                }
+                            } else {
+                                choices.push(textAfter4.trim().replace(/\n/g, ' '));
+                            }
+                        }
+                    }
+                    if (choices.length >= 2) hasRealChoices = true;
+                }
+
+                // Method 2: 1) 2) 3) 4) pattern
+                if (!hasRealChoices) {
+                    const altPattern = /[\(\[]?([1-4])[\)\]]\s*([^\n\(\[1-4]+)/g;
+                    const altMatches = [...textAfterNum.matchAll(altPattern)];
+                    if (altMatches.length >= 2) {
+                        questionText = textAfterNum.substring(0, altMatches[0].index).trim();
+                        altMatches.forEach(m => choices.push(m[2].trim()));
+                        hasRealChoices = true;
+                    }
+                }
+
+                // ★ 핵심 필터: 선택지가 없거나 너무 짧으면 시험문제가 아닌 것으로 판단하고 건너뜜
+                const isLikelyAnswerBox = textAfterNum.includes('정답') || textAfterNum.length < 5;
+                if (!hasRealChoices || isLikelyAnswerBox) {
+                    console.log(`Skipping Q${qNum}: likely not a standard exam question block (hasRealChoices: ${hasRealChoices})`);
+                    continue;
+                }
+
+                // Clean up question text
+                questionText = questionText.replace(/\n/g, ' ').trim();
+
+                results.push({
+                    id: qNum,
+                    question: questionText || "",
+                    choices: choices,
+                    answer: extractedAnswerFromBlock // 4번 보기 꼬리표에서 추출한 값 (없으면 -1)
+                });
+            }
+
+            // --- [New] Look for Answer Key in the isolated footerText ---
+            if (footerText && results.length > 0) {
+                const markers = ['①', '②', '③', '④'];
+
+                // Case 1: Specific question mappings like "1. ③", "[정답] 1. ③"
+                const multMatch = [...footerText.matchAll(/(\d{1,3})\s*\.?\s*[정답]*\s*([①②③④])/g)];
+                if (multMatch.length > 0) {
+                    multMatch.forEach(m => {
+                        const qId = parseInt(m[1]);
+                        const ansIdx = markers.indexOf(m[2]);
+                        const targetQ = results.find(r => r.id === qId);
+                        if (targetQ) targetQ.answer = ansIdx;
+                    });
+                } else {
+                    // Case 2: Generic answer marker like "정답: 3", or "정답 ③", or just "③" at the start
+                    const ansMatchNum = footerText.match(/정답\s*[:\.]?\s*([1-4])/);
+                    let foundAns = -1;
+                    if (ansMatchNum) {
+                        foundAns = parseInt(ansMatchNum[1]) - 1; // 0-indexed
+                    } else {
+                        const circleMatch = footerText.match(/([①②③④])/);
+                        if (circleMatch) {
+                            foundAns = markers.indexOf(circleMatch[1]);
+                        }
+                    }
+
+                    if (foundAns !== -1) {
+                        // Apply to the last question if there's no explicit number,
+                        // or to all if there's only 1 question.
+                        if (results.length === 1) {
+                            if (results[0].answer === -1) results[0].answer = foundAns;
+                        } else {
+                            if (results[results.length - 1].answer === -1) results[results.length - 1].answer = foundAns;
+                        }
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        function generateDynamicOMRFromData(tabId, questionData) {
+            const sidePanel = document.querySelector(`#${tabId} .quiz-side-panel`);
+            if (!sidePanel) return;
+
+            sidePanel.innerHTML = '';
+
+            // [New] Add "Manage DB" Button with prominent styling
+            const manageHeader = document.createElement('div');
+            manageHeader.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:10px; margin-bottom:15px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);";
+            manageHeader.innerHTML = `
+                <div style="font-size:13px; font-weight:bold; color:#475569;">📊 정답/문항 관리</div>
+                <button onclick="openOmrManager()" title="정답을 직접 입력하거나 문항 텍스트를 수정할 수 있습니다." style="font-size:12px; background:#4f46e5; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; color:white; display:flex; align-items:center; gap:6px; font-weight:bold; transition:all 0.2s;">
+                    <span>⚙️ DB 관리</span>
+                </button>
+            `;
+            sidePanel.appendChild(manageHeader);
+
+            if (questionData.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.style.cssText = "padding:30px 20px; text-align:center; color:#94a3b8; background:white; border-radius:12px; border:1px dotted #cbd5e1; margin-top:20px;";
+                emptyMsg.innerHTML = `
+                    <div style="font-size:24px; margin-bottom:10px;">📄</div>
+                    <p style="font-size:14px; font-weight:500;">이 페이지에서는 추출된 시험 문제가 없습니다.</p>
+                `;
+                sidePanel.appendChild(emptyMsg);
+                return;
+            }
+
+            questionData.sort((a, b) => a.id - b.id).forEach(data => {
+                const qNum = data.id;
+                const qText = data.question || ""; // No default text if empty
+                let choices = data.choices && data.choices.length > 0 ? data.choices : ["①", "②", "③", "④"];
+
+                const correctAnswer = data.answer !== undefined && data.answer !== null ? data.answer : -1;
+
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.dataset.qId = qNum;
+                card.dataset.correct = correctAnswer;
+                card.style.cssText = 'display: flex; flex-direction: column; padding: 10px 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);';
+
+                card.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="font-size: 15px; font-weight: bold; color: #1e293b; width: 50px;">${qNum}번</div>
+                        <div class="quiz-choices" id="choices-${tabId}-${qNum}" style="display: flex; gap: 8px; flex: 1; justify-content: center;">
+                        </div>
+                    </div>
+                    <div class="feedback-msg" style="display:none; margin-top:8px; font-size:12px; font-weight:bold; padding:6px; border-radius:6px; text-align:center;"></div>
+                `;
+
+                sidePanel.appendChild(card);
+
+                const choicesBox = card.querySelector(`.quiz-choices`);
+                // Force exactly 4 choices for OMR
+                const OMR_MARKERS = ["①", "②", "③", "④"];
+                OMR_MARKERS.forEach((marker, i) => {
+                    const choiceItem = document.createElement('div');
+                    choiceItem.className = 'choice-item';
+                    choiceItem.dataset.idx = i;
+                    // Override styles for compact circular OMR look
+                    choiceItem.style.cssText = 'padding: 0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid #cbd5e1; background: #f8fafc; cursor: pointer; transition: all 0.2s; font-size: 14px; color: #475569; font-weight: bold; margin-bottom: 0;';
+
+                    choiceItem.innerHTML = `<span>${marker}</span>`;
+
+                    choiceItem.onclick = () => {
+                        // Deselect others in this card
+                        Array.from(choicesBox.children).forEach(c => {
+                            c.style.background = '#f8fafc';
+                            c.style.color = '#475569';
+                            c.style.borderColor = '#cbd5e1';
+                            c.classList.remove('selected', 'wrong', 'correct');
+                        });
+
+                        choiceItem.classList.add('selected');
+                        choiceItem.style.background = '#4f46e5';
+                        choiceItem.style.color = 'white';
+                        choiceItem.style.borderColor = '#4f46e5';
+
+                        // [New] Automatic Grading Feedback
+                        const correctIdx = parseInt(card.dataset.correct);
+                        const feedback = card.querySelector('.feedback-msg');
+                        const isCorrect = (i === correctIdx);
+
+                        if (!isNaN(correctIdx) && correctIdx !== -1) {
+                            feedback.style.display = 'block';
+                            if (isCorrect) {
+                                choiceItem.classList.add('correct');
+                                choiceItem.style.background = '#22c55e';
+                                choiceItem.style.borderColor = '#22c55e';
+                                feedback.textContent = "✨ 정답입니다!";
+                                feedback.style.background = "#dcfce7";
+                                feedback.style.color = "#166534";
+                            } else {
+                                choiceItem.classList.add('wrong');
+                                choiceItem.style.background = '#ef4444';
+                                choiceItem.style.borderColor = '#ef4444';
+                                // Highlight the correct one as well
+                                const correctItem = choicesBox.querySelector(`.choice-item[data-idx="${correctIdx}"]`);
+                                if (correctItem) {
+                                    correctItem.classList.add('correct');
+                                    correctItem.style.background = '#22c55e';
+                                    correctItem.style.color = 'white';
+                                    correctItem.style.borderColor = '#22c55e';
+                                }
+
+                                feedback.textContent = `❌ 오답입니다. (정답: ${correctIdx + 1}번)`;
+                                feedback.style.background = "#fee2e2";
+                                feedback.style.color = "#991b1b";
+                            }
+                        } else {
+                            // No correct answer in DB/PDF yet
+                            feedback.style.display = 'none';
+                        }
+                    };
+                    choicesBox.appendChild(choiceItem);
+                });
+            });
+
+            // Add Check Answer Button
+            const submitBtn = document.createElement('button');
+            submitBtn.className = 'submit-btn quiz-check-btn'; // custom class for styling
+            submitBtn.innerText = '채점 확인 (Check Answer)';
+            submitBtn.style.cssText = "margin-top:20px; width:100%; padding:12px; background:#4f46e5; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;";
+
+            submitBtn.onclick = () => {
+                let correctCount = 0;
+                let total = questionData.length;
+                let attempted = 0;
+
+                const cards = sidePanel.querySelectorAll('.question-card');
+                cards.forEach(card => {
+                    const correctIdx = parseInt(card.dataset.correct);
+                    const selected = card.querySelector('.choice-item.selected');
+                    const feedback = card.querySelector('.feedback-msg');
+
+                    if (selected) {
+                        attempted++;
+                        const userIdx = parseInt(selected.dataset.idx);
+
+                        // Reset styles
+                        card.querySelectorAll('.choice-item').forEach(c => {
+                            c.classList.remove('correct', 'wrong');
+                            if (!c.classList.contains('selected')) {
+                                c.style.background = '#f8fafc';
+                                c.style.color = '#475569';
+                                c.style.borderColor = '#cbd5e1';
+                            }
+                        });
+
+                        if (isNaN(correctIdx) || correctIdx === -1) {
+                            feedback.className = "feedback-msg";
+                            feedback.style.color = "#d97706";
+                            feedback.style.background = "#fef3c7";
+                            feedback.textContent = "정답 데이터가 없어 채점할 수 없습니다.";
+                            feedback.style.display = 'block';
+                        } else if (userIdx === correctIdx) {
+                            correctCount++;
+                            selected.classList.add('correct');
+                            selected.style.background = '#22c55e';
+                            selected.style.borderColor = '#22c55e';
+                            selected.style.color = 'white';
+                            feedback.className = "feedback-msg";
+                            feedback.style.color = "#16a34a";
+                            feedback.style.background = "#dcfce7";
+                            feedback.textContent = "✨ 정답입니다!";
+                            feedback.style.display = 'block';
+                        } else {
+                            selected.classList.add('wrong');
+                            selected.style.background = '#ef4444';
+                            selected.style.borderColor = '#ef4444';
+                            // Highlight correct answer
+                            const correctItem = card.querySelector(`.choice-item[data-idx="${correctIdx}"]`);
+                            if (correctItem) {
+                                correctItem.classList.add('correct');
+                                correctItem.style.background = '#22c55e';
+                                correctItem.style.borderColor = '#22c55e';
+                                correctItem.style.color = 'white';
+                            }
+
+                            feedback.className = "feedback-msg";
+                            feedback.style.color = "#dc2626";
+                            feedback.textContent = "오답입니다.";
+                            feedback.style.display = 'block';
+                        }
+                    } else {
+                        // Not attempted
+                        feedback.textContent = "답을 선택해주세요.";
+                        feedback.style.color = "#666";
+                        feedback.style.display = 'block';
+                    }
+                });
+
+                if (attempted > 0) {
+                    alert(`채점 완료!\n${total}문제 중 ${correctCount}문제 정답.`);
+                } else {
+                    alert("문제를 풀어주세요.");
+                }
+            };
+
+            sidePanel.appendChild(submitBtn);
+        }
+
+
+
+        // ----------------------------------------------------
+        // Dictionary & Grammar Search Logic
+        // ----------------------------------------------------
+
+        // Mock Data for Prototype
+        const grammarDB = [
+            { pattern: "-(으)ㄴ/는 것 같다", meaning: "Used to express an assumption or opinion based on sensory evidence.", example: "비가 오는 것 같아요. (It looks like it's raining.)" },
+            { pattern: "-아/어/여야 하다", meaning: "Must / Have to", example: "내일 일찍 일어나야 해요. (I have to wake up early tomorrow.)" },
+            { pattern: "-(으)ㄹ 수 있다", meaning: "Can / Is possible", example: "한국어를 할 수 있어요. (I can speak Korean.)" },
+            { pattern: "-기 때문에", meaning: "Because / Since", example: "비가 오기 때문에 집에 있었어요. (I stayed home because it was raining.)" }
+        ];
+
+        const vocabDB = [
+            { word: "학교", meaning: "School", related: "학생 (Student), 공부 (Study)" },
+            { word: "공부하다", meaning: "To study", related: "배우다 (To learn), 숙제 (Homework)" },
+            { word: "친구", meaning: "Friend", related: "우정 (Friendship)" },
+            { word: "사랑", meaning: "Love", related: "좋아하다 (To like)" }
+        ];
+
+        function searchDictionary() {
+            const input = document.getElementById('dictSearchInput');
+            const query = input.value.trim().toLowerCase();
+            const resultsContainer = document.getElementById('dictSearchResults');
+
+            if (!query) return;
+
+            resultsContainer.innerHTML = '';
+
+            // 1. Primary: Naver Dictionary (Big Button)
+            const primarySection = document.createElement('div');
+            primarySection.style.marginBottom = "20px";
+            primarySection.innerHTML = `
+                <h4 style="margin:0 0 10px; color:#1e293b; font-size:1rem;">🔍 기본 검색 (Naver)</h4>
+                <a href="https://dict.naver.com/search.nhn?query=${query}" target="_blank" 
+                   style="display:block; padding:15px; background:#03c75a; color:white; text-align:center; border-radius:8px; text-decoration:none; font-size:1.1rem; font-weight:bold; box-shadow:0 4px 6px rgba(3,199,90,0.2);">
+                   네이버 사전에서 '${query}' 검색
+                </a>
+            `;
+            resultsContainer.appendChild(primarySection);
+
+            // 2. Extra Search Options Header
+            const extraContainer = document.createElement('div');
+            extraContainer.innerHTML = `<h4 style="margin:20px 0 10px; color:#64748b; border-bottom:1px solid #e2e8f0; font-size:0.9rem; padding-bottom:5px;">➕ 추가 검색 및 로컬 데이터</h4>`;
+            resultsContainer.appendChild(extraContainer);
+
+            // 3. Local Search (Grammar/Vocab)
+            let localFound = false;
+
+            // Grammar
+            const matchedGrammar = grammarDB.filter(g => g.pattern.includes(query) || g.pattern.replace(/[-\(\)\/]/g, '').includes(query));
+            if (matchedGrammar.length > 0) {
+                localFound = true;
+                matchedGrammar.forEach(g => {
+                    const item = document.createElement('div');
+                    item.style.cssText = "padding:10px; background:#f0f9ff; border-radius:6px; margin-bottom:8px; border:1px solid #bae6fd;";
+                    item.innerHTML = `
+                        <div style="font-weight:bold; color:#0369a1; font-size:0.95rem;">[문법] ${g.pattern}</div>
+                        <div style="color:#0c4a6e; font-size:0.85rem; margin-top:2px;">${g.meaning}</div>
+                    `;
+                    resultsContainer.appendChild(item);
+                });
+            }
+
+            // Vocab
+            const matchedVocab = vocabDB.filter(v => v.word.includes(query));
+            if (matchedVocab.length > 0) {
+                localFound = true;
+                matchedVocab.forEach(v => {
+                    const item = document.createElement('div');
+                    item.style.cssText = "padding:10px; background:#fff7ed; border-radius:6px; margin-bottom:8px; border:1px solid #ffedd5;";
+                    item.innerHTML = `
+                        <div style="font-weight:bold; color:#9a3412; font-size:0.95rem;">[어휘] ${v.word}</div>
+                        <div style="color:#7c2d12; font-size:0.85rem; margin-top:2px;">${v.meaning}</div>
+                    `;
+                    resultsContainer.appendChild(item);
+                });
+            }
+
+            // 4. Other External Search Buttons (Small/Grid)
+            const otherLinks = document.createElement('div');
+            otherLinks.style.cssText = "display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;";
+            otherLinks.innerHTML = `
+                <a href="https://ko.wikipedia.org/wiki/${query}" target="_blank" 
+                   style="padding:8px; background:#f1f5f9; color:#475569; text-align:center; border-radius:6px; text-decoration:none; font-size:0.8rem; border:1px solid #cbd5e1;">
+                   위키백과
+                </a>
+                <a href="https://namu.wiki/w/${query}" target="_blank" 
+                   style="padding:8px; background:#f1f5f9; color:#475569; text-align:center; border-radius:6px; text-decoration:none; font-size:0.8rem; border:1px solid #cbd5e1;">
+                   나무위키
+                </a>
+                <a href="https://search.naver.com/search.naver?query=${query}" target="_blank" 
+                   style="padding:8px; background:#f1f5f9; color:#475569; text-align:center; border-radius:6px; text-decoration:none; font-size:0.8rem; border:1px solid #cbd5e1;">
+                   네이버 통합
+                </a>
+                <a href="https://www.google.com/search?q=${query}" target="_blank" 
+                   style="padding:8px; background:#f1f5f9; color:#475569; text-align:center; border-radius:6px; text-decoration:none; font-size:0.8rem; border:1px solid #cbd5e1;">
+                   Google
+                </a>
+            `;
+            resultsContainer.appendChild(otherLinks);
+        }
+
+        // ----------------------------------------------------
+        // [New] Question Manager Logic
+        // ----------------------------------------------------
+        let currentMgrData = [];
+
+        function openOmrManager() {
+            // 1. 현재 페이지의 데이터를 로드 (스캔된 데이터 or 저장된 데이터)
+            // scanPageForQuestions에서 이미 로드된 데이터를 기반으로 해야 하지만,
+            // 간단하게: 현재 화면에 렌더링된 데이터를 긁어오거나, 다시 로드 로직을 수행
+
+            // 기존에 로드된 데이터가 있으면 그것을, 없으면 다시 계산
+            // 효율을 위해 loadUserExamData를 우선 확인
+            const userSaved = loadUserExamData(currentPdfId, currentPage);
+
+            if (userSaved) {
+                currentMgrData = JSON.parse(JSON.stringify(userSaved)); // Deep copy
+            } else {
+                // 저장된게 없으면, 현재 스캔 로직을 다시 돌려서(또는 캐시된거) 가져옴.
+                // 편의상, fallbackData 생성을 위해 scanPageForQuestions 로직과 유사하게 가져와야 함.
+                // 여기서는 "Empty"로 시작해서 사용자가 추가하게 하거나, 
+                // 직전 scan 결과가 어딘가 저장되어있으면 좋음.
+                // ==> scanPageForQuestions 실행 시 `lastScannedData` 전역 변수에 저장하도록 수정 필요.
+                if (typeof lastScannedData !== 'undefined' && lastScannedData) {
+                    currentMgrData = JSON.parse(JSON.stringify(lastScannedData));
+                } else {
+                    currentMgrData = [];
+                }
+            }
+
+            renderManagerList();
+            document.getElementById('omrManagerModal').style.display = 'flex';
+        }
+
+        function closeOmrManager() {
+            document.getElementById('omrManagerModal').style.display = 'none';
+        }
+
+        function renderManagerList() {
+            const container = document.getElementById('omrEditorList');
+            container.innerHTML = '';
+
+            currentMgrData.sort((a, b) => a.id - b.id);
+
+            currentMgrData.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.style.cssText = 'border:1px solid #e2e8f0; border-radius:8px; padding:12px; background:#fafafa;';
+
+                const choices = q.choices || ['①', '②', '③', '④'];
+                const choicesHtml = choices.map((c, ci) =>
+                    `<div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
+                        <span style="font-weight:bold; color:#4f46e5; min-width:20px;">${['①', '②', '③', '④'][ci]}</span>
+                        <input type="text" value="${c.replace(/"/g, '&quot;')}" 
+                               onchange="updateManagerChoice(${index},${ci},this.value)" 
+                               style="flex:1; padding:4px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem;">
+                    </div>`
+                ).join('');
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-weight:bold; color:#1e293b;">Q.${q.id}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:0.8rem; color:#64748b;">정답:</label>
+                            <select onchange="updateManagerAnswer(${index}, this.value)" class="input-tiny" style="font-size:0.85rem;">
+                                <option value="-1" ${q.answer === -1 ? 'selected' : ''}>미정</option>
+                                <option value="0" ${q.answer === 0 ? 'selected' : ''}>①</option>
+                                <option value="1" ${q.answer === 1 ? 'selected' : ''}>②</option>
+                                <option value="2" ${q.answer === 2 ? 'selected' : ''}>③</option>
+                                <option value="3" ${q.answer === 3 ? 'selected' : ''}>④</option>
+                            </select>
+                            <button onclick="removeManagerQuestion(${index})" class="btn-delete" title="삭제">🗑</button>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <label style="font-size:0.75rem; color:#94a3b8;">문항 텍스트:</label>
+                        <input type="text" value="${(q.question || '').replace(/"/g, '&quot;')}" 
+                               onchange="updateManagerQuestion(${index}, this.value)" 
+                               style="width:100%; padding:5px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.9rem; margin-top:2px;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem; color:#94a3b8;">선택지:</label>
+                        ${choicesHtml}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateManagerAnswer(index, val) {
+            currentMgrData[index].answer = parseInt(val);
+        }
+
+        function updateManagerQuestion(index, val) {
+            currentMgrData[index].question = val;
+        }
+
+        function updateManagerChoice(index, choiceIdx, val) {
+            if (!currentMgrData[index].choices) currentMgrData[index].choices = ['①', '②', '③', '④'];
+            currentMgrData[index].choices[choiceIdx] = val;
+        }
+
+        function removeManagerQuestion(index) {
+            currentMgrData.splice(index, 1);
+            renderManagerList();
+        }
+
+        function addQuestionToManager() {
+            const numInput = document.getElementById('newQmNum');
+            const ansInput = document.getElementById('newQmAns');
+            const num = parseInt(numInput.value);
+            const ans = parseInt(ansInput.value);
+
+            if (!num) {
+                alert("문제 번호를 입력하세요.");
+                return;
+            }
+
+            // 중복 체크
+            if (currentMgrData.find(q => q.id === num)) {
+                alert("이미 존재하는 번호입니다.");
+                return;
+            }
+
+            currentMgrData.push({
+                id: num,
+                question: `문제 ${num}`,
+                choices: ["①", "②", "③", "④"],
+                answer: ans
+            });
+
+            // 입력 초기화
+            numInput.value = "";
+            renderManagerList();
+        }
+
+        function saveOmrManagerData() {
+            const key = `koreantalk_userexam_${currentPdfId}`;
+            let allData = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : {};
+
+            // 현재 페이지 데이터 저장
+            allData[currentPage] = currentMgrData;
+            localStorage.setItem(key, JSON.stringify(allData));
+
+            alert("저장되었습니다. 화면을 갱신합니다.");
+            closeOmrManager();
+            // 다시 스캔 (저장된 데이터가 로드됨)
+            scanPageForQuestions(currentPage);
+        }
+
+        function resetToAutoScan() {
+            if (confirm("정말로 사용자 설정을 지우고 자동 인식 결과로 돌아가시겠습니까?")) {
+                const key = `koreantalk_userexam_${currentPdfId}`;
+                let allData = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : {};
+
+                delete allData[currentPage];
+                localStorage.setItem(key, JSON.stringify(allData));
+
+                alert("초기화되었습니다.");
+                closeOmrManager();
+                // 다시 스캔
+                scanPageForQuestions(currentPage);
+            }
+        }
+
+        // Helper: DB Load
+        function loadUserExamData(pdfId, pageNum) {
+            const key = `koreantalk_userexam_${pdfId}`;
+            const json = localStorage.getItem(key);
+            if (!json) return null;
+            const allData = JSON.parse(json);
+            return allData[pageNum] || null;
+        }
+
+        // Global var to store last scan for manager
+        let lastScannedData = [];
+    </script>
+</body>
+
+
+</html>

@@ -1,0 +1,31 @@
+=========================================
+Ngrok을 이용한 외부 테스트(스마트폰/타 PC) 접속 방법
+=========================================
+
+1. Ngrok 가입 및 설치
+   - https://ngrok.com/ 에 접속하여 무료 회원가입을 합니다.
+   - [Download for Windows]를 클릭해 ngrok.exe 파일을 다운로드 받습니다.
+   - 다운로드 받은 압축을 풀고 ngrok.exe 파일을 현재 폴더(e:\code_e\koreantalk\datas_web)나 적당한 곳에 넣습니다.
+
+2. 인증 토큰 등록 (최초 1회만)
+   - ngrok 대시보드(https://dashboard.ngrok.com/get-started/your-authtoken)로 이동합니다.
+   - 'Your Authtoken' 복사 후 터미널(CMD/Powershell)에서 아래 명령어를 칩니다.
+     ngrok config add-authtoken 본인의_토큰문자열
+
+3. 로컬 웹 서버 켜기 (필수)
+   - 기존처럼 서버를 먼저 켜두어야 합니다.
+   - `start_web_server.bat`를 실행하여 http://localhost:8000 이 켜진 상태를 유지하세요.
+
+4. Ngrok 실행하여 외부로 열어주기
+   - 새 터미널 창을 열고 ngrok.exe가 있는 하위 경로에서 다음 명령을 실행합니다:
+     ngrok http 8000
+   
+   - 실행하면 검은 창에 여러 정보가 뜨는데, 그중 "Forwarding" 옆에 적힌 URL을 찾습니다.
+     예: Forwarding  https://a1b2-c3d4.ngrok-free.app -> http://localhost:8000
+
+5. 사람들에게 접속 주소 전달
+   - 복사한 `https://~.ngrok-free.app/pdf-viewer.html` 주소를 스마트폰 웹브라우저나 다른 사람에게 카톡으로 보냅니다.
+   - (주의) ngrok 무료 버전은 ngrok을 껐다 켤 때마다 앞의 영어/숫자 랜덤 주소가 계속 바뀝니다.
+
+6. 공유 종료
+   - 테스트가 끝나면 터미널 창에서 [Ctrl + C]를 누르거나 프로그램 창을 닫으면 즉시 외부 연결이 차단됩니다.

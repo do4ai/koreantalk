@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>YouTube 영상 관리 | KoreanTalk</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/youtube.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>KoreanTalk</h1>
+            <p class="subtitle">YouTube 영상 관리</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
+
+        <div class="youtube-manager">
+            <div class="add-video-section">
+                <h2>YouTube 영상 추가</h2>
+                <div class="input-group">
+                    <input type="text" id="youtubeUrl" placeholder="YouTube 링크를 입력하세요 (예: https://www.youtube.com/watch?v=...)" class="youtube-input">
+                    <button onclick="addVideo()" class="add-button">추가</button>
+                </div>
+                <p class="helper-text">YouTube 링크 또는 영상 ID를 입력하세요</p>
+            </div>
+
+            <div class="videos-section">
+                <h2>저장된 영상 목록</h2>
+                <div id="videosList" class="videos-grid">
+                    <!-- 저장된 영상들이 여기에 표시됩니다 -->
+                </div>
+                <div id="emptyMessage" class="empty-message">
+                    저장된 영상이 없습니다. 위에서 YouTube 링크를 추가해보세요!
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 KoreanTalk. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/youtube.js"></script>
+</body>
+</html>

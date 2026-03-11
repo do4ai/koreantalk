@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 관리 | KoreanTalk</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/pdf-manager.css?v=3">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <h1>KoreanTalk</h1>
+            <p class="subtitle">PDF 관리</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
+
+        <div class="pdf-manager">
+            <!-- PDF 추가 섹션 -->
+            <div class="add-pdf-section">
+                <h2>PDF 파일 추가</h2>
+
+                <!-- Section Selector -->
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:bold; color:#555; display:block; margin-bottom:5px;">카테고리 선택
+                        (Section)</label>
+                    <select id="sectionSelect"
+                        style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd;">
+                        <option value="speaking">말하기 (Speaking)</option>
+                        <option value="exam">듣기&읽기 (Exam)</option>
+                        <option value="grammar">문법 (Grammar)</option>
+                    </select>
+                </div>
+
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <p class="upload-text">PDF 파일을 드래그 앤 드롭하거나 클릭하여 선택하세요</p>
+                    <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;">
+                    <button onclick="document.getElementById('pdfFileInput').click()" class="upload-button">
+                        파일 선택
+                    </button>
+                </div>
+                <p class="helper-text">최대 100MB까지 업로드 가능합니다. (IndexedDB 사용)</p>
+                <div id="errorLog"
+                    style="display:none; margin-top:15px; padding:10px; background:#fff5f5; border:1px solid #fc8181; color:#c53030; border-radius:5px; font-size:0.9rem; white-space:pre-wrap;">
+                </div>
+            </div>
+
+            <!-- PDF 목록 섹션 -->
+            <div class="pdfs-section">
+                <div class="section-header">
+                    <h2>저장된 PDF 목록</h2>
+                    <div class="header-buttons" style="display:flex; gap:10px;">
+                        <a href="pdf-stt.html" class="view-button" style="background:#673ab7;">📄 DOCX 분석기</a>
+                        <a href="pdf-viewer.html" class="view-button">▶ PDF 보기</a>
+                    </div>
+                </div>
+                <div id="pdfsList" class="pdfs-grid">
+                    <!-- 저장된 PDF들이 여기에 표시됩니다 -->
+                </div>
+                <div id="emptyMessage" class="empty-message">
+                    저장된 PDF가 없습니다. 위에서 PDF 파일을 추가해보세요!
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 KoreanTalk. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // PDF.js 워커 설정
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const DB_NAME = 'KoreanTalkDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'pdfs';
+
+        let db = null;
+
+        // DB 초기화
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        const pdfFileInput = document.getElementById('pdfFileInput');
+        const pdfsList = document.getElementById('pdfsList');
+        const emptyMessage = document.getElementById('emptyMessage');
+        const uploadArea = document.getElementById('uploadArea');
+        const errorLog = document.getElementById('errorLog');
+        const sectionSelect = document.getElementById('sectionSelect');
+
+        function logError(msg, err) {
+            console.error(msg, err);
+            errorLog.style.display = 'block';
+            const time = new Date().toLocaleTimeString();
+            errorLog.innerText += `[${time}] ${msg}\n${err ? err.message || err : ''}\n`;
+        }
+
+        // 파일 선택 시
+        pdfFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        // 드래그 앤 드롭
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            uploadArea.style.borderColor = '#ccc';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ccc';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                handleFile(file);
+            } else {
+                alert('PDF 파일만 업로드 가능합니다.');
+            }
+        });
+
+        async function handleFile(file) {
+            errorLog.style.display = 'none';
+            errorLog.innerText = '';
+
+            const section = sectionSelect.value; // Get selected section
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+
+                // 중요: PDF.js가 버퍼를 전송(Transfer)하여 원본이 분리(Detached)될 수 있으므로,
+                // 분석용 복사본을 만들어 PDF.js에 전달하고 원본은 저장용으로 유지합니다.
+                const bufferForAnalysis = arrayBuffer.slice(0);
+
+                const pdf = await pdfjsLib.getDocument({ data: bufferForAnalysis }).promise;
+                const pageCount = pdf.numPages;
+
+                const pdfData = {
+                    id: Date.now().toString(),
+                    name: file.name,
+                    data: arrayBuffer, // 원본 버퍼 저장
+                    pages: pageCount,
+                    section: section,  // Store section
+                    addedAt: new Date().toISOString()
+                };
+
+                await savePdf(pdfData);
+                alert(`${file.name} (${pageCount}페이지)가 [${section}] 섹션에 저장되었습니다!`);
+                displayPdfs();
+            } catch (error) {
+                logError('PDF 처리 중 오류가 발생했습니다.', error);
+                alert('오류가 발생했습니다. 아래 로그를 확인하세요.');
+            }
+        }
+
+        function savePdf(pdfData) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put(pdfData);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function displayPdfs() {
+            if (!db) await initDB();
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const pdfs = request.result;
+                pdfsList.innerHTML = '';
+                if (pdfs.length === 0) {
+                    emptyMessage.style.display = 'block';
+                } else {
+                    emptyMessage.style.display = 'none';
+                    pdfs.forEach(pdf => {
+                        const sectionName = {
+                            'speaking': '말하기',
+                            'exam': '듣기&읽기',
+                            'listening': '듣기',
+                            'reading': '읽기',
+                            'grammar': '문법'
+                        }[pdf.section] || '기타';
+
+                        const sectionColor = {
+                            'speaking': '#e0f2fe', // blue-100
+                            'exam': '#dcfce7',   // green-100
+                            'listening': '#fef3c7', // amber-100
+                            'reading': '#dcfce7',   // green-100
+                            'grammar': '#f3e8ff'    // purple-100
+                        }[pdf.section] || '#f3f4f6';
+
+                        const textColor = {
+                            'speaking': '#0284c7',
+                            'exam': '#16a34a',
+                            'listening': '#d97706',
+                            'reading': '#16a34a',
+                            'grammar': '#7e22ce'
+                        }[pdf.section] || '#4b5563';
+
+                        const card = document.createElement('div');
+                        card.className = 'pdf-card';
+                        card.style.cssText = 'background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.05); position:relative;';
+                        card.innerHTML = `
+                            <div style="margin-bottom:8px;">
+                                <span style="background:${sectionColor}; color:${textColor}; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold;">${sectionName}</span>
+                            </div>
+                            <h3 style="margin-bottom:10px; font-size:1.1rem; word-break:break-all;">${pdf.name}</h3>
+                            <p style="color:#666; font-size:0.9rem;">${pdf.pages} 페이지</p>
+                            <button onclick="event.stopPropagation(); deletePdf('${pdf.id}')" style="position:absolute; top:10px; right:10px; background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:1.2rem;" title="삭제">×</button>
+                        `;
+                        card.onclick = () => {
+                            window.location.href = `pdf-viewer.html?id=${pdf.id}`;
+                        };
+                        pdfsList.appendChild(card);
+                    });
+                }
+            };
+        }
+
+        window.deletePdf = async function (id) {
+            console.log("Attempting to delete PDF with ID:", id);
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+
+            if (!db) {
+                console.log("DB not initialized, initializing...");
+                await initDB();
+            }
+
+            try {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+
+                // ID 타입 호환성: 문자열 우선 삭제 후, 유효한 숫자인 경우만 숫자형 ID 삭제 시도
+                try {
+                    store.delete(id);
+                    const numId = Number(id);
+                    if (!isNaN(numId)) {
+                        store.delete(numId);
+                    }
+                } catch (err) {
+                    console.error("IDB delete request error:", err);
+                }
+
+                transaction.oncomplete = () => {
+                    console.log("Deletion transaction completed.");
+                    // 관련 설정도 삭제
+                    localStorage.removeItem(`koreantalk_pdf_settings_${id}`);
+                    localStorage.removeItem(`koreantalk_userexam_${id}`);
+                    displayPdfs();
+                };
+
+                transaction.onerror = (e) => {
+                    console.error("Deletion transaction failed:", e);
+                    alert("삭제 중 오류가 발생했습니다.");
+                };
+            } catch (e) {
+                console.error("Critical error in deletePdf:", e);
+                alert("삭제 기능을 실행할 수 없습니다. 오류: " + e.message);
+            }
+        };
+
+        initDB().then(displayPdfs);
+    </script>
+</body>
+
+</html>

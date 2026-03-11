@@ -1,0 +1,30 @@
+# API 키 보안
+js/config.js
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# 환경 변수
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+
+# 임시 파일
+*.tmp
+*.temp

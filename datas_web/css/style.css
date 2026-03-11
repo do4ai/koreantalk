@@ -1,0 +1,304 @@
+/* 기본 스타일 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* 헤더 */
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 0;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+header .subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+/* 메인 콘텐츠 */
+main {
+    padding: 40px 0;
+}
+
+.chapters-section h2 {
+    font-size: 2rem;
+    margin-bottom: 30px;
+    color: #333;
+    text-align: center;
+}
+
+/* 챕터 목차 리스트 */
+.chapters-list {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.chapter-item {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.chapter-item:last-child {
+    border-bottom: none;
+}
+
+.chapter-link {
+    display: flex;
+    align-items: center;
+    padding: 20px 15px;
+    text-decoration: none;
+    color: #333;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+a.chapter-link:hover {
+    background-color: #f5f0ff;
+    padding-left: 25px;
+}
+
+.chapter-number {
+    font-size: 1rem;
+    color: #667eea;
+    font-weight: bold;
+    min-width: 100px;
+}
+
+.chapter-divider {
+    margin: 0 15px;
+    color: #999;
+}
+
+.chapter-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #333;
+    flex: 1;
+}
+
+.chapter-arrow {
+    font-size: 1.2rem;
+    color: #667eea;
+    margin-left: auto;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+a.chapter-link:hover .chapter-arrow {
+    opacity: 1;
+}
+
+/* 비활성화된 챕터 */
+.chapter-item.disabled .chapter-link {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.chapter-item.disabled .chapter-link:hover {
+    background-color: transparent;
+    padding-left: 15px;
+}
+
+.chapter-item.disabled .chapter-title {
+    color: #999;
+    font-style: italic;
+}
+
+/* 챕터 상세 페이지 */
+.chapter-detail {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: #667eea;
+    text-decoration: none;
+    font-size: 1.1rem;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.chapter-header {
+    border-bottom: 3px solid #667eea;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+.chapter-header h2 {
+    font-size: 2rem;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.chapter-header .subtitle {
+    font-size: 1.2rem;
+    color: #666;
+}
+
+/* 이미지 섹션 */
+.image-section {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.chapter-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin: 0 auto;
+    display: block;
+}
+
+/* 대화 섹션 */
+.dialogue-section {
+    margin-bottom: 30px;
+}
+
+.dialogue-content {
+    background: #f9f9f9;
+    border-left: 4px solid #667eea;
+    padding: 25px;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    line-height: 2;
+}
+
+.dialogue-line {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.dialogue-line:hover {
+    background-color: #f0f0f0;
+}
+
+.dialogue-text {
+    flex: 1;
+}
+
+.speaker {
+    font-weight: bold;
+    color: #667eea;
+}
+
+/* 개별 TTS 버튼 */
+.line-tts-button {
+    background: transparent;
+    color: #667eea;
+    border: 1.5px solid #667eea;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.line-tts-button:hover {
+    background: #f5f0ff;
+    border-color: #5568d3;
+    color: #5568d3;
+}
+
+.line-tts-button:active {
+    transform: scale(0.98);
+}
+
+.line-tts-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* TTS 버튼 */
+.tts-controls {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.tts-button {
+    background: transparent;
+    color: #667eea;
+    border: 2px solid #667eea;
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.tts-button:hover {
+    background: #f5f0ff;
+    border-color: #5568d3;
+    color: #5568d3;
+}
+
+.tts-button:active {
+    transform: scale(0.98);
+}
+
+.tts-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 푸터 */
+footer {
+    background: #333;
+    color: white;
+    text-align: center;
+    padding: 20px 0;
+    margin-top: 50px;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 2rem;
+    }
+
+    .chapters-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chapter-detail {
+        padding: 20px;
+    }
+}

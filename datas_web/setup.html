@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KoreanTalk 설정 가이드</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .setup-container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .setup-step {
+            margin-bottom: 40px;
+            padding: 25px;
+            border-left: 4px solid #667eea;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .setup-step h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .setup-step ol {
+            margin-left: 20px;
+            line-height: 2;
+        }
+        .setup-step code {
+            background: #e8f4f8;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .code-block code {
+            background: none;
+            color: #f8f8f2;
+            padding: 0;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .success-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 15px 30px;
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .success-btn:hover {
+            background: #f5f0ff;
+            border-color: #5568d3;
+            color: #5568d3;
+        }
+        .link-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+        }
+        .link-button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>KoreanTalk</h1>
+            <p class="subtitle">설정 가이드</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="setup-container">
+            <h2 style="text-align: center; margin-bottom: 30px;">Google Cloud TTS API 설정</h2>
+
+            <div class="highlight">
+                <strong>비용 정보:</strong> 월 400만 글자 무료, 이후 $4/100만 글자 (매우 저렴!)
+            </div>
+
+            <div class="setup-step">
+                <h3>1단계: Google Cloud 프로젝트 생성</h3>
+                <ol>
+                    <li><a href="https://console.cloud.google.com/" target="_blank" class="link-button">Google Cloud Console 열기</a></li>
+                    <li>새 프로젝트 생성 또는 기존 프로젝트 선택</li>
+                    <li>결제 계정 연결 (무료 평가판 $300 크레딧 사용 가능)</li>
+                </ol>
+            </div>
+
+            <div class="setup-step">
+                <h3>2단계: Text-to-Speech API 활성화</h3>
+                <ol>
+                    <li><a href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com" target="_blank" class="link-button">Text-to-Speech API 페이지 열기</a></li>
+                    <li><strong>"사용 설정"</strong> 버튼 클릭</li>
+                    <li>API가 활성화될 때까지 대기 (1-2분)</li>
+                </ol>
+            </div>
+
+            <div class="setup-step">
+                <h3>3단계: API 키 생성</h3>
+                <ol>
+                    <li><a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="link-button">사용자 인증 정보 페이지 열기</a></li>
+                    <li><strong>"+ 사용자 인증 정보 만들기"</strong> 클릭</li>
+                    <li><strong>"API 키"</strong> 선택</li>
+                    <li>생성된 API 키를 복사 (나중에 다시 확인 가능)</li>
+                </ol>
+            </div>
+
+            <div class="setup-step">
+                <h3>4단계: API 키 설정</h3>
+                <p><code>js/config.js</code> 파일을 열고 다음과 같이 수정하세요:</p>
+
+                <div class="code-block">
+                    <code>const GOOGLE_TTS_CONFIG = {
+    apiKey: '<span style="color: #a6e22e;">여기에_복사한_API_키_붙여넣기</span>',
+    endpoint: 'https://texttospeech.googleapis.com/v1/text:synthesize'
+};</code>
+                </div>
+
+                <div class="highlight">
+                    <strong>참고:</strong> API 키를 공개 저장소에 올리지 마세요!
+                </div>
+            </div>
+
+            <div class="setup-step">
+                <h3>5단계: 테스트</h3>
+                <ol>
+                    <li><code>index.html</code> 파일을 브라우저에서 열기</li>
+                    <li>아무 Chapter 선택</li>
+                    <li>"🔊 듣기" 버튼 클릭하여 음성 재생 확인</li>
+                </ol>
+            </div>
+
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="index.html" class="success-btn">설정 완료! 시작하기 →</a>
+            </div>
+
+            <div style="margin-top: 40px; padding: 20px; background: #f0f8ff; border-radius: 8px;">
+                <h3 style="margin-bottom: 15px;">문제 해결</h3>
+                <ul style="line-height: 2;">
+                    <li><strong>"API 키가 설정되지 않았습니다"</strong> → <code>config.js</code> 파일에 API 키를 올바르게 입력했는지 확인</li>
+                    <li><strong>"음성 생성에 실패했습니다"</strong> → API가 활성화되어 있고 API 키가 유효한지 확인</li>
+                    <li><strong>음성이 재생되지 않음</strong> → 브라우저 콘솔(F12)에서 오류 메시지 확인</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <p>더 자세한 정보는 <a href="README.md" style="color: #667eea; font-weight: bold;">README.md</a> 파일을 참고하세요.</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 KoreanTalk. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>

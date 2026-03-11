@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF-STT 매칭 뷰어 | KoreanTalk</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+KR:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --bg: #f1f5f9;
+            --text: #0f172a;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.22rem;
+            background: linear-gradient(to right, #4f46e5, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .control-panel {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .pdf-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        .btn-apply-all {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-apply-all:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(16, 185, 129, 0.35);
+            background: #059669;
+        }
+
+        .btn-apply-all:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .page-item {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .page-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+
+        .time-inputs {
+            display: flex;
+            gap: 15px;
+            background: #f8fafc;
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .time-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .time-group input {
+            width: 60px;
+            padding: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            text-align: center;
+            color: var(--primary);
+            font-family: 'Outfit';
+            font-weight: 700;
+        }
+
+        .edit-area {
+            width: 100%;
+            min-height: 140px;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: vertical;
+            background: #fff;
+        }
+
+        .speak-btn {
+            background: #e0e7ff;
+            color: #4f46e5;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .speak-btn:hover {
+            background: #c7d2fe;
+        }
+
+        #fileInputPanel {
+            padding: 15px;
+            background: #fff9db;
+            border-radius: 12px;
+            border: 1px solid #ffe066;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>PDF TTS Auto-Converter</h1>
+            <p style="color: #64748b;">PDF에서 추출된 텍스트를 바로 TTS 시스템으로 적용합니다.</p>
+        </header>
+
+        <div class="control-panel">
+            <div class="pdf-row">
+                <div class="input-group">
+                    <label>데이터를 적용할 PDF 선택</label>
+                    <select id="pdfSelect">
+                        <option value="">로딩 중...</option>
+                    </select>
+                </div>
+                <button id="finalApplyBtn" class="btn-apply-all" disabled>
+                    ✓ 현재 PDF 텍스트 전체 적용하기
+                </button>
+            </div>
+
+            <div id="statusInfo"
+                style="margin-bottom: 15px; font-weight: 600; color: #475569; text-align: right; padding: 0 10px;">데이터
+                로드 중...</div>
+            <div id="viewerBody"></div>
+        </div>
+
+        <script src="result.js"></script>
+        <script>
+            const DB_NAME = 'KoreanTalkDB';
+            const STORE_NAME = 'pdfs';
+            let resultData = [];
+            let pdfList = [];
+
+            const pdfSelect = document.getElementById('pdfSelect');
+            const finalApplyBtn = document.getElementById('finalApplyBtn');
+            const viewerBody = document.getElementById('viewerBody');
+            const fileInputPanel = document.getElementById('fileInputPanel');
+            const statusInfo = document.getElementById('statusInfo');
+
+            // Startup
+            (async () => {
+                await initPdfList();
+
+                // 1. result.js를 통해 주입된 데이터가 있는지 확인 (가장 확실한 자동 로드 방식)
+                if (typeof resultDataRaw !== 'undefined' && resultDataRaw.length > 0) {
+                    onDataLoaded(resultDataRaw);
+                    statusInfo.textContent = "데이터 자동 로드 완료 (JS)";
+                    return;
+                }
+
+                // 2. JS 데이터가 없다면 fetch로 시도 (서버 환경인 경우)
+                try {
+                    statusInfo.textContent = "데이터 불러오는 중...";
+                    const response = await fetch('result.json');
+                    if (response.ok) {
+                        const data = await response.json();
+                        onDataLoaded(data);
+                        statusInfo.textContent = "데이터 로드 완료 (JSON)";
+                    } else {
+                        throw new Error();
+                    }
+                } catch (err) {
+                    console.warn('모든 자동 로드 실패');
+                    statusInfo.innerHTML = '<span style="color:#ef4444">⚠️ 데이터를 로드할 수 없습니다. Python 스크립트를 먼저 실행해 주세요.</span>';
+                }
+            })();
+
+            async function initPdfList() {
+                return new Promise(res => {
+                    const req = indexedDB.open(DB_NAME);
+                    req.onsuccess = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(STORE_NAME)) return res();
+                        const tx = db.transaction(STORE_NAME, 'readonly');
+                        const store = tx.objectStore(STORE_NAME);
+                        const query = store.getAll();
+                        query.onsuccess = () => {
+                            pdfList = query.result;
+                            if (pdfList.length > 0) {
+                                pdfSelect.innerHTML = pdfList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                            } else {
+                                pdfSelect.innerHTML = '<option value="">DB에 PDF 없음</option>';
+                            }
+                            updateBtnState();
+                            res();
+                        };
+                    };
+                    req.onerror = () => res();
+                });
+            }
+
+            function parseTimes(text) {
+                if (!text) return { prep: 0, speak: 0 };
+                const prepMatch = text.match(/(\d+)\s*초\s*동안\s*준비/);
+                const speakMatch = text.match(/(\d+)\s*초\s*동안\s*말|(\d+)\s*초\s*동안\s*이야기/);
+                return {
+                    prep: prepMatch ? parseInt(prepMatch[1]) : 0,
+                    speak: speakMatch ? parseInt(speakMatch[1] || speakMatch[2]) : 0
+                };
+            }
+
+            function onDataLoaded(data) {
+                resultData = data.map(p => {
+                    // 텍스트 클리닝 (숫자열 노이즈 제거)
+                    let cleanedText = (p.pdf_text || "").split('\n')
+                        .filter(line => {
+                            const trimmed = line.trim();
+                            if (!trimmed) return false;
+                            // 숫자와 공백으로만 된 3자 이상의 줄은 노이즈로 간주
+                            if (/^[\d\s]+$/.test(trimmed) && trimmed.replace(/\s/g, '').length >= 3) return false;
+                            return true;
+                        })
+                        .join('\n').strip ? (p.pdf_text || "").trim() : (p.pdf_text || "").trim(); // .strip fallback
+
+                    // 실제 클리닝 적용 (정규표현식으로 더 확실히)
+                    cleanedText = (p.pdf_text || "").replace(/^[\d\s]{3,}\n/gm, "").trim();
+
+                    const times = parseTimes(cleanedText);
+                    let mainText = cleanedText;
+                    let noteText = "";
+                    const splitMatch = mainText.match(/(Note\s*\.?\s*|대\s*답\s*[:\.]?\s*\n)/i);
+                    if (splitMatch) {
+                        const splitIdx = splitMatch.index;
+                        noteText = mainText.substring(splitIdx).trim();
+                        mainText = mainText.substring(0, splitIdx).trim();
+                    }
+                    return { ...p, prepTime: times.prep, speakTime: times.speak, pdf_text: mainText, noteText: noteText };
+                });
+                statusInfo.innerText = `총 ${data.length}개 페이지 분석 완료`;
+                renderViewer();
+                updateBtnState();
+                fileInputPanel.style.display = 'none';
+            }
+
+            function renderViewer() {
+                viewerBody.innerHTML = resultData.map((p, idx) => `
+                <div class="page-item" data-idx="${idx}">
+                    <div class="page-top">
+                        <div class="page-badge">PAGE ${p.page}</div>
+                        <div class="time-inputs">
+                            <div class="time-group">⏳ 준비 <input type="number" class="prep-val" value="${p.prepTime}"> 초</div>
+                            <div class="time-group">🗣️ 말하기 <input type="number" class="speak-val" value="${p.speakTime}"> 초</div>
+                        </div>
+                        <button class="speak-btn" onclick="speak(this.closest('.page-item').querySelector('.edit-area').value)">🔊 본문 듣기</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: #4f46e5;">본문 (TTS 읽기용)</label>
+                        <textarea class="edit-area main-text">${p.pdf_text || ""}</textarea>
+                        
+                        <label style="font-size: 0.8rem; font-weight: 700; color: #ec4899;">Note (별도 표시용)</label>
+                        <textarea class="edit-area note-text" style="min-height: 80px; border-color: #fce7f3;">${p.noteText || ""}</textarea>
+                    </div>
+                </div>
+            `).join('');
+            }
+
+            function updateBtnState() {
+                finalApplyBtn.disabled = !(resultData.length > 0 && pdfSelect.value !== "");
+            }
+
+            pdfSelect.onchange = updateBtnState;
+
+            finalApplyBtn.onclick = async () => {
+                const pdfId = pdfSelect.value;
+                const pdfName = pdfSelect.options[pdfSelect.selectedIndex].text;
+                if (!pdfId) return;
+
+                if (!confirm(`[${pdfName}] PDF에 편집된 텍스트와 시간 설정을 모두 적용하시겠습니까?`)) return;
+
+                const items = document.querySelectorAll('.page-item');
+                const settings = {};
+
+                items.forEach(el => {
+                    const idx = el.dataset.idx;
+                    const pageNum = resultData[idx].page;
+                    const text = el.querySelector('.main-text').value;
+                    const note = el.querySelector('.note-text').value;
+                    const prep = parseInt(el.querySelector('.prep-val').value) || 0;
+                    const speakVal = parseInt(el.querySelector('.speak-val').value) || 0;
+
+                    settings[pageNum] = {
+                        text: text,
+                        noteText: note,
+                        prepTime: prep,
+                        speakTime: speakVal,
+                        delay: 0,
+                        audio: null
+                    };
+                });
+
+                localStorage.setItem(`koreantalk_pdf_settings_${pdfId}`, JSON.stringify(settings));
+                alert('성공적으로 적용되었습니다! 이제 뷰어에서 확인하세요.');
+            };
+
+            function speak(text) {
+                if (!text) return;
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = 'ko-KR';
+                window.speechSynthesis.speak(u);
+            }
+        </script>
+</body>
+
+</html>
