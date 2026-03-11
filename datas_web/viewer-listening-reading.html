@@ -1507,7 +1507,7 @@
                         id: 'remote_' + Date.now(),
                         name: 'Remote PDF',
                         data: new Uint8Array(arrayBuffer),
-                        section: urlParams.get('section') || 'reading' // 강제 reading
+                        section: urlParams.get('section') || 'exam' // 강제 exam
                     };
 
                     loadPdf(remotePdf);
