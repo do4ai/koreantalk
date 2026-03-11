@@ -733,7 +733,9 @@
             elements.pdfSelector.style.display = 'none';
             elements.pdfViewerSection.style.display = 'block';
 
-            renderPage(1);
+            // 로드 직후 1페이지를 기준으로 기기 디스플레이(창) 가로 길이에 화면 자동 맞춤
+            currentPage = 1;
+            await fitToWidth();
 
             // Refresh current tab structure to ensure viewer is placed correctly
             const activeTabBtn = document.querySelector('.tab-btn.active');
