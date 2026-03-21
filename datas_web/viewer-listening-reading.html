@@ -1481,39 +1481,68 @@
             }
         }
 
+        function normalizeSessionSection(mode, fallbackSection) {
+            if (!mode) return fallbackSection;
+
+            const normalized = String(mode).toLowerCase();
+            if (normalized === 'listening' || normalized === 'reading' || normalized === 'listening-reading') return 'exam';
+            if (normalized === 'vocabulary') return 'grammar';
+            if (normalized === 'auto') return fallbackSection;
+            return normalized;
+        }
+
+        async function loadViewerSession(fallbackSection) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionToken = urlParams.get('session') || urlParams.get('token') || urlParams.get('viewer_session');
+
+            if (!sessionToken) return false;
+
+            try {
+                document.getElementById('loadingMessage').innerHTML = '보안 세션을 확인하고 시험지를 불러오는 중입니다...<br><span style="font-size: 0.9rem; color:#666; font-weight:normal;">구매 권한과 PDF 스트림을 확인하고 있습니다.</span>';
+
+                const manifestResponse = await fetch(`/api/viewer/session/${encodeURIComponent(sessionToken)}`, {
+                    credentials: 'include',
+                    headers: { Accept: 'application/json' }
+                });
+                if (!manifestResponse.ok) throw new Error(`세션 조회 실패 (${manifestResponse.status})`);
+
+                const manifest = await manifestResponse.json();
+                const pdfMeta = manifest.pdf || {};
+                const pdfStreamUrl = pdfMeta.stream_url || manifest.pdf_stream_url || pdfMeta.proxy_url || manifest.pdf_proxy_url || pdfMeta.signed_url || manifest.signed_pdf_url;
+                if (!pdfStreamUrl) throw new Error('세션 응답에 PDF 스트림 주소가 없습니다.');
+
+                const resolvedPdfUrl = /^https?:\/\//.test(pdfStreamUrl) ? pdfStreamUrl : new URL(pdfStreamUrl, window.location.origin).toString();
+                const pdfResponse = await fetch(resolvedPdfUrl, {
+                    credentials: resolvedPdfUrl.startsWith(window.location.origin) ? 'include' : 'omit'
+                });
+                if (!pdfResponse.ok) throw new Error(`PDF 스트림 조회 실패 (${pdfResponse.status})`);
+
+                const arrayBuffer = await pdfResponse.arrayBuffer();
+                const remotePdf = {
+                    id: `session_${sessionToken}`,
+                    name: (manifest.book && manifest.book.title) || 'Secure PDF',
+                    data: new Uint8Array(arrayBuffer),
+                    section: normalizeSessionSection(manifest.mode || manifest.viewer_mode || (manifest.book && manifest.book.mode), fallbackSection)
+                };
+
+                loadPdf(remotePdf);
+            } catch (error) {
+                console.error('세션 기반 PDF 로드 실패:', error);
+                document.getElementById('loadingMessage').innerHTML = `<span style="color:#ef4444;">보안 세션으로 시험지를 불러오지 못했습니다.</span><br><br>${error.message}`;
+            }
+
+            return true;
+        }
+
         // URL 파라미터 확인 및 초기화
         window.onload = async () => {
             await initDB();
             const urlParams = new URLSearchParams(window.location.search);
             const id = urlParams.get('id');
-            const pdfUrl = urlParams.get('url');
 
-            if (pdfUrl) {
-                // 외부 URL에서 PDF 로드
-                try {
-                    console.log("Downloading remote PDF from:", pdfUrl);
-                    // 안내 메시지 표시
-                    document.getElementById('loadingMessage').innerHTML = '원격 저장소에서 시험지를 불러오는 중입니다...<br><span style="font-size: 0.9rem; color:#666; font-weight:normal;">파일 용량에 따라 잠시 시간이 소요될 수 있습니다.</span>';
+            if (await loadViewerSession('exam')) return;
 
-                    const response = await fetch(pdfUrl);
-                    if (!response.ok) throw new Error("Network response was not ok");
-
-                    const arrayBuffer = await response.arrayBuffer();
-
-                    // 가상의 PDF 객체 생성 (기존 로직과 호환되게 data 포함)
-                    const remotePdf = {
-                        id: 'remote_' + Date.now(),
-                        name: 'Remote PDF',
-                        data: new Uint8Array(arrayBuffer),
-                        section: urlParams.get('section') || 'exam' // 강제 exam
-                    };
-
-                    loadPdf(remotePdf);
-                } catch (error) {
-                    console.error("PDF 다운로드 실패:", error);
-                    document.getElementById('loadingMessage').innerHTML = '<span style="color:#ef4444;">시험지를 불러오지 못했습니다.</span><br><br>올바른 링크(URL)인지 확인해 주세요. (' + error.message + ')';
-                }
-            } else if (id) {
+            if (id) {
                 const transaction = db.transaction([STORE_NAME], 'readonly');
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.get(id);
@@ -1524,7 +1553,7 @@
                     }
                 };
             } else {
-                document.getElementById('loadingMessage').innerHTML = '<span style="color:#ef4444;">잘못된 접근입니다.</span><br><br>개별적으로 부여받은 전용 링크 주소(URL)를 통해 접속해 주세요.';
+                document.getElementById('loadingMessage').innerHTML = '<span style="color:#ef4444;">잘못된 접근입니다.</span><br><br>전자책 상세 화면에서 발급된 세션 링크로 다시 접속해 주세요.';
             }
         };
 

@@ -1,0 +1,19 @@
+{
+  "sessions": [
+    {
+      "token": "exam-demo",
+      "pdf_source": "/absolute/path/to/topik2-listening-reading.pdf",
+      "pdf_page_count": 82
+    },
+    {
+      "token": "speaking-demo",
+      "pdf_source": "/absolute/path/to/topik-speaking.pdf",
+      "pdf_page_count": 120
+    },
+    {
+      "token": "grammar-demo",
+      "pdf_source": "/absolute/path/to/topik2-grammar.pdf",
+      "pdf_page_count": 84
+    }
+  ]
+}
