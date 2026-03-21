@@ -1,0 +1,209 @@
+{
+  "sessions": [
+    {
+      "token": "exam-demo",
+      "viewer_path": "/viewer-listening-reading.html",
+      "description": "듣기·읽기 전용 뷰어에서 문제 풀이 흐름을 확인합니다.",
+      "mode": "exam",
+      "book": {
+        "title": "TOPIK2 듣기·읽기",
+        "subtitle": "문제 풀이와 PDF 본문을 한 화면에서 검수합니다.",
+        "author": "KoreanTalk"
+      },
+      "access": {
+        "member_name": "Local QA",
+        "allow_download": false
+      },
+      "pdf_source": "",
+      "pdf_page_count": 82,
+      "exam": {
+        "answer_visibility": "after_submit",
+        "submit_copy": "이 페이지 답안을 제출했습니다.",
+        "pages": {
+          "9": [
+            {
+              "number": 1,
+              "prompt": "대화에 맞는 그림을 고르십시오.",
+              "choices": ["가", "나", "다", "라"],
+              "answer": 2,
+              "explanation": "지문 핵심 단서를 기준으로 3번 선택지가 맞습니다."
+            },
+            {
+              "number": 2,
+              "prompt": "대화에 이어질 말을 고르십시오.",
+              "choices": ["좋습니다.", "아직 아닙니다.", "처음 뵙겠습니다.", "조심히 다녀오세요."],
+              "answer": 0,
+              "explanation": "응답 맥락상 긍정 응답이 자연스럽습니다."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "token": "speaking-demo",
+      "viewer_path": "/viewer-speaking.html",
+      "description": "말하기 준비 시간과 발화 시간을 포함한 학습 흐름을 검수합니다.",
+      "mode": "speaking",
+      "book": {
+        "title": "TOPIK Speaking",
+        "subtitle": "준비 시간과 말하기 시간을 포함한 보안 세션 기반 뷰어입니다.",
+        "author": "KoreanTalk"
+      },
+      "access": {
+        "member_name": "Local QA",
+        "allow_download": false
+      },
+      "pdf_source": "",
+      "pdf_page_count": 120,
+      "speaking": {
+        "pages": {
+          "16": {
+            "script": "가족 모임을 준비하고 있습니다. 각자 할 일을 나누어 말해 보십시오.",
+            "prep_seconds": 30,
+            "speak_seconds": 40,
+            "note": "큰아들은 요리, 작은아들은 거실 정리와 상차리기를 맡기는 흐름으로 답변하면 됩니다."
+          },
+          "17": {
+            "script": "친구에게 병원 가는 길을 설명해 보십시오.",
+            "prep_seconds": 20,
+            "speak_seconds": 35,
+            "note": "출발 지점, 교통수단, 도착 지점 순서로 안내하는 것이 자연스럽습니다."
+          }
+        }
+      }
+    },
+    {
+      "token": "grammar-demo",
+      "viewer_path": "/viewer-grammar.html",
+      "description": "문법·어휘 전용 사이드 패널과 요약 카드를 검수합니다.",
+      "mode": "grammar",
+      "book": {
+        "title": "TOPIK2 Grammar / Vocabulary",
+        "subtitle": "본문과 요약, 핵심 어휘를 보안 세션 기반으로 확인합니다.",
+        "author": "KoreanTalk"
+      },
+      "access": {
+        "member_name": "Local QA",
+        "allow_download": false
+      },
+      "pdf_source": "",
+      "pdf_page_count": 84,
+      "grammar": {
+        "pages": {
+          "3": {
+            "summary": "문법 개념의 정의와 쓰임을 먼저 파악한 뒤, 예문에서 위치와 결합 형태를 확인하는 흐름으로 학습합니다.",
+            "vocabulary": [
+              {
+                "term": "-(으)ㄴ/는 편이다",
+                "meaning": "어떤 경향이나 성질을 완곡하게 표현할 때 사용합니다.",
+                "example": "저는 매운 음식을 잘 먹는 편입니다."
+              },
+              {
+                "term": "-기에",
+                "meaning": "이유나 판단 근거를 제시할 때 사용합니다.",
+                "example": "시간이 부족하기에 오늘은 여기까지 하겠습니다."
+              }
+            ],
+            "tips": [
+              "문법 형태를 통째로 외우기보다 함께 쓰이는 표현을 같이 확인합니다.",
+              "예문을 자신의 상황으로 바꿔 말해 보면 기억에 더 오래 남습니다."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "token": "auto-exam-demo",
+      "viewer_path": "/pdf-viewer.html",
+      "description": "자동 모드 뷰어가 시험형 manifest를 받아 화면을 구성하는지 확인합니다.",
+      "mode": "exam",
+      "book": {
+        "title": "TOPIK2 듣기·읽기",
+        "subtitle": "auto 모드에서 시험형 manifest를 자동 구성합니다.",
+        "author": "KoreanTalk"
+      },
+      "access": {
+        "member_name": "Local QA",
+        "allow_download": false
+      },
+      "pdf_source": "",
+      "pdf_page_count": 82,
+      "exam": {
+        "answer_visibility": "after_submit",
+        "submit_copy": "auto 모드 시험형 제출을 완료했습니다.",
+        "pages": {
+          "9": [
+            {
+              "number": 1,
+              "prompt": "시험형 manifest 자동 구성 검수용 문항입니다.",
+              "choices": ["선택지 1", "선택지 2", "선택지 3", "선택지 4"],
+              "answer": 1,
+              "explanation": "auto 모드에서도 동일한 채점 카드가 보여야 합니다."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "token": "auto-speaking-demo",
+      "viewer_path": "/pdf-viewer.html",
+      "description": "자동 모드 뷰어가 말하기형 manifest를 받아 화면을 구성하는지 확인합니다.",
+      "mode": "speaking",
+      "book": {
+        "title": "TOPIK Speaking",
+        "subtitle": "auto 모드에서 말하기형 manifest를 자동 구성합니다.",
+        "author": "KoreanTalk"
+      },
+      "access": {
+        "member_name": "Local QA",
+        "allow_download": false
+      },
+      "pdf_source": "",
+      "pdf_page_count": 120,
+      "speaking": {
+        "pages": {
+          "16": {
+            "script": "auto 모드 말하기 검수용 스크립트입니다.",
+            "prep_seconds": 25,
+            "speak_seconds": 35,
+            "note": "auto 모드에서도 speaking 전용 패널과 타이머가 보여야 합니다."
+          }
+        }
+      }
+    },
+    {
+      "token": "auto-grammar-demo",
+      "viewer_path": "/pdf-viewer.html",
+      "description": "자동 모드 뷰어가 문법형 manifest를 받아 화면을 구성하는지 확인합니다.",
+      "mode": "grammar",
+      "book": {
+        "title": "TOPIK2 Grammar / Vocabulary",
+        "subtitle": "auto 모드에서 문법형 manifest를 자동 구성합니다.",
+        "author": "KoreanTalk"
+      },
+      "access": {
+        "member_name": "Local QA",
+        "allow_download": false
+      },
+      "pdf_source": "",
+      "pdf_page_count": 84,
+      "grammar": {
+        "pages": {
+          "3": {
+            "summary": "auto 모드 문법형 검수용 요약 카드입니다.",
+            "vocabulary": [
+              {
+                "term": "-도록",
+                "meaning": "목적이나 정도를 나타낼 때 사용합니다.",
+                "example": "늦지 않도록 서둘러 주세요."
+              }
+            ],
+            "tips": [
+              "auto 모드에서도 grammar 전용 카드가 유지되어야 합니다."
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
