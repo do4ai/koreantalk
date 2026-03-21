@@ -79,8 +79,15 @@ Vercel(내 웹사이트) 뷰어가 Cloudflare(창고)의 PDF를 가져와서 띄
 
 1. Cloudflare R2 버킷 화면('Objects' 탭)으로 돌아가서 아까 올린 PDF 파일을 클릭합니다.
 2. 파일 상세정보에 뜨는 퍼블릭 URL을 복사합니다. (예: `https://pub-1234abcd.r2.dev/TOPIK_Exam_1.pdf`)
-3. 앞서 우리가 개조한 뷰어 주소 뒤에 이렇게 붙여줍니다.
+3. 운영 배포에서는 **학생 브라우저에 R2 원본 주소를 직접 넘기지 마세요.**
 
-👉 `https://[선생님의_Vercel주소].vercel.app/pdf-viewer.html?url=https://pub-1234abcd.r2.dev/TOPIK_Exam_1.pdf&section=exam`
+권장 구조는 다음과 같습니다.
 
-이제 선생님의 뷰어가 100MB PDF 파일을 Vercel 서버 비용 0원으로 1초 만에 불러옵니다!
+- 학생은 Koreantalk 상세 화면에서 `학습 시작` 버튼을 누릅니다.
+- PHP 백엔드가 로그인/구매 권한을 확인합니다.
+- 백엔드가 짧은 수명의 `viewer session token`을 발급합니다.
+- 학생은 `https://[도메인]/viewer-listening-reading.html?session=<opaque-token>` 같은 주소로 이동합니다.
+- 뷰어는 서버의 `/api/viewer/session/{token}`를 호출합니다.
+- 서버는 same-origin PDF 프록시 주소 또는 매우 짧은 TTL의 signed stream 주소를 manifest로 내려줍니다.
+
+즉, R2는 **원본 저장소**로만 사용하고, 학생에게는 `?url=` 형태로 직접 노출하지 않는 것이 안전합니다.

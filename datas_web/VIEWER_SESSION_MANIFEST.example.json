@@ -1,0 +1,36 @@
+{
+  "mode": "exam",
+  "expires_at": "2026-03-22T23:59:59+09:00",
+  "book": {
+    "title": "TOPIK2 듣기·읽기",
+    "subtitle": "문제 풀이와 PDF 본문을 한 화면에서 검수합니다.",
+    "author": "KoreanTalk"
+  },
+  "access": {
+    "member_name": "홍길동",
+    "allow_download": false
+  },
+  "navigation": {
+    "detail_url": "/kr/electron_book_v_1_0_0/electron_book_detail?electron_book_idx=15",
+    "close_url": "/kr/my_order_v_1_0_0"
+  },
+  "pdf": {
+    "stream_url": "/api/viewer/session/opaque-token/pdf",
+    "page_count": 82
+  },
+  "exam": {
+    "answer_visibility": "after_submit",
+    "submit_copy": "이 페이지 답안을 제출했습니다.",
+    "pages": {
+      "9": [
+        {
+          "number": 1,
+          "prompt": "대화에 맞는 그림을 고르십시오.",
+          "choices": ["가", "나", "다", "라"],
+          "answer": 2,
+          "explanation": "지문 핵심 단서를 기준으로 3번 선택지가 맞습니다."
+        }
+      ]
+    }
+  }
+}

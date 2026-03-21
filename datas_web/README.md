@@ -1,3 +1,122 @@
+# KoreanTalk - TOPIK 학습 뷰어
+
+## Secure Viewer Update
+
+이 저장소에서 운영 연동 대상으로 정리하는 범위는 `datas_web` 정적 뷰어와 연동 문서입니다.
+
+- 고객사 운영 PHP/Apache/DB는 이 저장소에서 직접 수정하지 않음
+- 운영 전달 산출물은 `datas_web` 배포본과 연동 명세서로 정리
+
+학생용 전자책 뷰어는 `feature/security_ui` 브랜치부터 `?url=` 직접 로드 방식을 사용하지 않습니다.
+
+- 진입 방식: `viewer-*.html?session=<opaque-token>`
+- 권장 세션 API: `GET /api/viewer/session/{token}`
+- 상세 설계 문서: [SECURE_VIEWER_INTEGRATION.md](./SECURE_VIEWER_INTEGRATION.md)
+- 운영 체크리스트: [SECURE_VIEWER_DEPLOY_CHECKLIST.md](./SECURE_VIEWER_DEPLOY_CHECKLIST.md)
+- manifest 예시: [VIEWER_SESSION_MANIFEST.example.json](./VIEWER_SESSION_MANIFEST.example.json)
+
+기존 `exam_data.js`, `result.js`는 개발 fallback 용도로만 유지하고, 운영에서는 서버가 내려주는 manifest JSON을 정본으로 사용합니다.
+
+## Static Package Build
+
+운영 전달용 정적 패키지는 아래 스크립트로 생성합니다.
+
+```bash
+bash ./datas_web/package_secure_viewer.sh
+```
+
+기본 출력 경로:
+
+```text
+datas_web/dist/secure-viewer
+```
+
+원하면 출력 경로를 직접 줄 수 있습니다.
+
+```bash
+bash ./datas_web/package_secure_viewer.sh /tmp/secure-viewer-package
+```
+
+## Local Secure Viewer Run
+
+로컬 검수는 정적 HTML 직접 열기가 아니라 same-origin 개발 서버를 통해 진행합니다.
+
+1. 저장소 루트에서 실행:
+
+```bash
+python3 datas_web/secure_viewer_dev_server.py
+```
+
+또는:
+
+```bash
+./datas_web/start_secure_viewer_dev.sh
+```
+
+2. 브라우저에서 아래 주소 열기:
+
+```text
+http://127.0.0.1:8015/secure-viewer-local.html
+```
+
+3. 런처 페이지에서 원하는 세션 링크 선택:
+   - `exam-demo`
+   - `speaking-demo`
+   - `grammar-demo`
+   - `auto-*`
+
+### 로컬 개발 서버가 하는 일
+
+- `/api/viewer/session/{token}` 로 manifest JSON 응답
+- `/api/viewer/session/{token}/pdf` 로 same-origin PDF 프록시 응답
+- `dev/secure_viewer_sessions.json` 기준으로 샘플 세션 제공
+
+### 샘플 세션 수정
+
+- 기본 샘플: `dev/secure_viewer_sessions.json`
+- 개인별 오버라이드: `dev/secure_viewer_sessions.local.json`
+  - 이 파일은 `.gitignore` 처리됨
+- 예시 파일: `dev/secure_viewer_sessions.local.example.json`
+- `pdf_source` 는 다음 둘 중 하나를 받을 수 있음:
+  - `https://...pdf`
+  - 로컬 PDF 파일 경로
+- 저장소에는 기본 PDF 샘플이 포함되어 있지 않음
+  - 따라서 기본 설정은 `pdf_source` 를 비워 둠
+  - 실제 검수 시에는 `dev/secure_viewer_sessions.local.json` 에 직접 PDF 경로를 넣어야 함
+
+예시:
+
+```json
+{
+  "sessions": [
+    {
+      "token": "exam-demo",
+      "pdf_source": "/absolute/path/to/topik2-listening-reading.pdf"
+    },
+    {
+      "token": "speaking-demo",
+      "pdf_source": "/absolute/path/to/topik-speaking.pdf"
+    },
+    {
+      "token": "grammar-demo",
+      "pdf_source": "/absolute/path/to/topik2-grammar.pdf"
+    }
+  ]
+}
+```
+
+빠르게 시작하려면 예시 파일을 복사해 개인 설정 파일로 만듭니다.
+
+```bash
+cp datas_web/dev/secure_viewer_sessions.local.example.json datas_web/dev/secure_viewer_sessions.local.json
+```
+
+### 검수 포인트
+
+- `?session=` 없이 접근하면 차단 화면이 보여야 함
+- PDF는 직접 URL이 아니라 `/api/viewer/session/{token}/pdf` 로만 로드되어야 함
+- 운영 붙이기 전까지는 로컬 개발 서버로 UI와 세션 계약을 검수
+
 # KoreanTalk - TOPIK 말하기 연습
 
 TOPIK 한국어 말하기 연습을 위한 인터랙티브 웹사이트입니다.
