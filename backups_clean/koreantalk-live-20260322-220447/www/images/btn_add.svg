@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="106" height="28" viewBox="0 0 106 28">
+  <g id="btn_add" transform="translate(-870 -1841)">
+    <text id="품목_추가_" data-name="품목 추가   " transform="translate(939 1862)" fill="#da3931" font-size="16" font-family="NotoSansCJKkr-Medium, Noto Sans CJK KR" font-weight="500"><tspan x="-36" y="0" xml:space="preserve">품목 추가   </tspan></text>
+    <g id="그룹_13438" data-name="그룹 13438" transform="translate(82 -26.644)">
+      <g id="타원_669" data-name="타원 669" transform="translate(788 1867.644)" fill="#fff" stroke="#da3931" stroke-width="1">
+        <circle cx="14" cy="14" r="14" stroke="none"/>
+        <circle cx="14" cy="14" r="13.5" fill="none"/>
+      </g>
+      <g id="그룹_13437" data-name="그룹 13437" transform="translate(795.275 1875.275)">
+        <line id="선_923" data-name="선 923" x2="13" transform="translate(-0.275 6.369)" fill="none" stroke="#da3931" stroke-linecap="round" stroke-width="1"/>
+        <line id="선_924" data-name="선 924" y2="13" transform="translate(6.725 0.369)" fill="none" stroke="#da3931" stroke-linecap="round" stroke-width="1"/>
+      </g>
+    </g>
+  </g>
+</svg>

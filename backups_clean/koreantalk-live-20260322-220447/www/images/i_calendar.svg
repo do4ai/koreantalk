@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20" height="20" viewBox="0 0 20 20">
+  <defs>
+    <clipPath id="clip-path">
+      <rect id="사각형_9671" data-name="사각형 9671" width="20" height="20" transform="translate(-242 1358)" fill="#fff" stroke="#707070" stroke-width="1"/>
+    </clipPath>
+  </defs>
+  <g id="i_calendar" transform="translate(242 -1358)" clip-path="url(#clip-path)">
+    <g id="그룹_13362" data-name="그룹 13362" transform="translate(-346 1107.2)">
+      <path id="패스_91933" data-name="패스 91933" d="M122.473,253.945h-1.617v-.527a.527.527,0,0,0-1.055,0v.527h-3.164v-.527a.527.527,0,0,0-1.055,0v.527h-3.164v-.527a.527.527,0,0,0-1.055,0v.527H108.2v-.527a.527.527,0,0,0-1.055,0v.527h-1.617a.527.527,0,0,0-.527.527v13.711a.527.527,0,0,0,.527.527h16.945a.527.527,0,0,0,.527-.527V254.472a.527.527,0,0,0-.527-.527ZM107.145,255v.527a.527.527,0,1,0,1.055,0V255h3.164v.527a.527.527,0,1,0,1.055,0V255h3.164v.527a.527.527,0,1,0,1.055,0V255H119.8v.527a.527.527,0,1,0,1.055,0V255h1.09v2.109H106.055V255Zm-1.09,12.656v-9.492h15.891v9.492Zm0,0"/>
+    </g>
+  </g>
+</svg>

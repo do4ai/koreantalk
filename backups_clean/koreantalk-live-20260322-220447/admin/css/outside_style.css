@@ -1,0 +1,9 @@
+/*
+ *  MEMO : 공통 관리자 스타일 파일입니다.
+ * 작성자 : 민지
+ * 작성일 : 2020/02/24.
+*/
+
+/* editor */
+.collapse ul, .payment_box ul, .category_col > div ul{padding-left: 0;}
+.collapse li, .payment_box ul{list-style: none;}
