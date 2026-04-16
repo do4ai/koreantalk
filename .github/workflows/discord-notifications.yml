@@ -1,0 +1,179 @@
+name: Discord Notifications
+
+on:
+  workflow_dispatch:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - converted_to_draft
+      - closed
+  push:
+    branches:
+      - main
+  deployment_status:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Discord payload
+        id: payload
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sanitize = (value, limit = 1024) => {
+              if (value === undefined || value === null || value === "") {
+                return "n/a";
+              }
+
+              return String(value)
+                .replace(/@/g, "@\u200b")
+                .replace(/`/g, "'")
+                .replace(/\r?\n/g, " ")
+                .trim()
+                .slice(0, limit);
+            };
+
+            const shortSha = (sha) => sha ? sha.slice(0, 7) : "n/a";
+            const repoName = `${context.repo.owner}/${context.repo.repo}`;
+            const payload = { embeds: [] };
+            const embed = {
+              fields: [],
+              footer: { text: `event: ${context.eventName}` },
+              timestamp: new Date().toISOString(),
+            };
+
+            if (context.eventName === "pull_request_target") {
+              const pr = context.payload.pull_request;
+              const action = context.payload.action;
+              const merged = Boolean(pr.merged);
+              const prState = merged ? "merged" : action;
+              const colorByAction = {
+                opened: 3066993,
+                reopened: 3447003,
+                synchronize: 15844367,
+                ready_for_review: 10181046,
+                converted_to_draft: 9807270,
+                closed: 15158332,
+                merged: 5763719,
+              };
+
+              embed.title = `[PR ${prState}] #${pr.number} ${sanitize(pr.title, 200)}`;
+              embed.url = pr.html_url;
+              embed.description = sanitize(`${repoName} pull request update`, 400);
+              embed.color = colorByAction[prState] ?? 5793266;
+              embed.timestamp = pr.updated_at || embed.timestamp;
+              embed.fields.push(
+                { name: "Author", value: sanitize(pr.user.login), inline: true },
+                { name: "Base", value: sanitize(pr.base.ref), inline: true },
+                { name: "Head", value: sanitize(pr.head.ref), inline: true },
+                {
+                  name: "Status",
+                  value: merged
+                    ? "merged"
+                    : pr.draft
+                      ? "draft"
+                      : sanitize(pr.state),
+                  inline: true,
+                },
+                { name: "Commits", value: String(pr.commits ?? "n/a"), inline: true },
+                { name: "Files", value: String(pr.changed_files ?? "n/a"), inline: true },
+              );
+
+              if (prState === "synchronize" && pr.head?.sha) {
+                embed.fields.push({
+                  name: "Latest Commit",
+                  value: `\`${shortSha(pr.head.sha)}\``,
+                  inline: true,
+                });
+              }
+
+              if (merged && pr.merged_by?.login) {
+                embed.fields.push({
+                  name: "Merged By",
+                  value: sanitize(pr.merged_by.login),
+                  inline: true,
+                });
+              }
+            } else if (context.eventName === "push") {
+              const branch = context.ref.replace("refs/heads/", "");
+              const headCommit = context.payload.head_commit || {};
+              const commitMessage = sanitize(headCommit.message, 400);
+
+              embed.title = `[GitOps Deploy Signal] ${branch} updated`;
+              embed.url = context.payload.compare || `https://github.com/${repoName}/commit/${context.sha}`;
+              embed.description = sanitize(
+                "Push to main detected. ArgoCD should reconcile the updated desired state.",
+                400,
+              );
+              embed.color = 3447003;
+              embed.timestamp = headCommit.timestamp || embed.timestamp;
+              embed.fields.push(
+                { name: "Actor", value: sanitize(context.actor), inline: true },
+                { name: "Branch", value: sanitize(branch), inline: true },
+                { name: "Commit", value: `\`${shortSha(context.sha)}\``, inline: true },
+                { name: "Commit Count", value: String(context.payload.commits?.length ?? 0), inline: true },
+                { name: "Message", value: commitMessage, inline: false },
+              );
+            } else if (context.eventName === "deployment_status") {
+              const deployment = context.payload.deployment || {};
+              const status = context.payload.deployment_status || {};
+
+              embed.title = `[Deployment ${sanitize(status.state, 80)}] ${sanitize(deployment.environment, 120)}`;
+              embed.url = status.target_url || `https://github.com/${repoName}/deployments`;
+              embed.description = sanitize(status.description || "GitHub deployment status update", 400);
+              embed.color = status.state === "success" ? 5763719 : status.state === "failure" ? 15158332 : 15844367;
+              embed.timestamp = status.updated_at || embed.timestamp;
+              embed.fields.push(
+                { name: "Environment", value: sanitize(deployment.environment), inline: true },
+                { name: "State", value: sanitize(status.state), inline: true },
+                { name: "Ref", value: sanitize(deployment.ref), inline: true },
+              );
+
+              if (deployment.creator?.login) {
+                embed.fields.push({
+                  name: "Creator",
+                  value: sanitize(deployment.creator.login),
+                  inline: true,
+                });
+              }
+            } else {
+              embed.title = "[Notification Test] workflow_dispatch";
+              embed.url = `https://github.com/${repoName}/actions/runs/${context.runId}`;
+              embed.description = sanitize("Manual Discord notification test fired from GitHub Actions.", 400);
+              embed.color = 5793266;
+              embed.fields.push(
+                { name: "Actor", value: sanitize(context.actor), inline: true },
+                { name: "Repository", value: sanitize(repoName), inline: true },
+              );
+            }
+
+            payload.embeds.push(embed);
+            core.setOutput(
+              "payload_b64",
+              Buffer.from(JSON.stringify(payload), "utf8").toString("base64"),
+            );
+
+      - name: Send Discord notification
+        env:
+          DISCORD_GITHUB_WEBHOOK: ${{ secrets.DISCORD_GITHUB_WEBHOOK }}
+          PAYLOAD_B64: ${{ steps.payload.outputs.payload_b64 }}
+        run: |
+          if [ -z "$DISCORD_GITHUB_WEBHOOK" ]; then
+            echo "DISCORD_GITHUB_WEBHOOK is not configured; skipping Discord notification."
+            exit 0
+          fi
+
+          printf '%s' "$PAYLOAD_B64" | base64 --decode > payload.json
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            -X POST \
+            --data @payload.json \
+            "$DISCORD_GITHUB_WEBHOOK"
