@@ -38,6 +38,9 @@
 
           <?if($result->my_buy_cnt>0){?>
             <div class="btn_m btn_grad"><a href="javascript:void(0)" ><?=lang('lang_10077','구매하기')?></a></div>
+            <div class="btn_m btn_point" style="margin-top:12px;">
+              <a href="/<?=$this->current_lang?>/<?=mapping('electron_book')?>/study_viewer?electron_book_idx=<?=$result->electron_book_idx?>" id="btn_study" data-electron-book-idx="<?=$result->electron_book_idx?>">Study</a>
+            </div>
           <?}else{?>
             <div class="btn_m btn_point"><a href="/<?=$this->current_lang?>/<?=mapping('electron_book')?>/product_payment?electron_book_idx=<?=$result->electron_book_idx?>" ><?=lang('lang_10078','구매하기')?></a></div>
           <?}?>
